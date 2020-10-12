@@ -1,0 +1,94 @@
+8833998 Páginas só canto direito, inclusive nas Partes (abntex2 redefinido)
+e6bf1ef Correções da CPG
+47c4a42 Com Ficha catalográfica
+9abdaed Pequeno ajuste nos ITCs diretos e inversos
+725f943 Ata de aprovação trocada pela folha da banca. Ficha catalográfica medida. Keywords alteradas
+65f4681 Minhas correções. library.bib reduzido. Referências atualizadas com betterbib
+7d42516 Correções W. Conclusão Final. DG e DS Mic. Bibliografia
+b34ac69 Correções Paulo Miranda. Figura Resumo Tau R Adit Colocada.
+8896a7f Correções Bombard
+38f3c13 Abreviações de Surf em Imagens corrigidas. Correções Bertran. Tabelas propriedades no apendice
+d0ad630 Permissões e folha de aprovação adicionadas
+c12761b Muco -> Apêndices. Logo Unicamp Capa
+7984ed8 Correção Edvaldo
+562d425 README adicionado
+5d661b6 Correção edvaldo ignorada
+77344f0 Correção: Lia
+a70bc21 Correção: Hiris
+3525497 Detalhes arrumados. Índice terminado. Enviado para correção
+b9acc0d Tudo: Referencias terminadas. \ref para \autoref, de novo.
+278f52d TEO: referencias terminadas. EXP: revisao terminada. \ref pra \autoref no texto do texto
+600bc29 TEO: mais referencias, até Fluorescência
+00070b6 TEO: mais referencias, até modelo de Maxwell. G0 para G no texto e em várias figuras
+27105de TEO: inicio referencias e revisão. Estrutura dos surfs. alterada
+1fc1c82 TEO: imagens calorimetria de MG. Texto: ref para autoref. Correções em algumas figuras
+6a692d1 TEO: índice adicionado
+c050c53 FINAL! TEO: terminado, figuras colocadas. APN: reol oscilatoria código colocado. ADIT: Garcia-Saraji adicionado
+56cc0ff TEO: final termodinamica, faltam figuras
+da0fefa Contrib: diagramado, quase complexo. TEO: reologia oscilatoria de MG adicionado
+774b863 CIN: terminado, revisões da diagramação do texto de forma geral
+3f9bb06 CIN: inicio fluorescência
+f96e408 CIN: final SAXS
+5507ff4 CIN: Tratamento SAXS completo. Falta inserir no texto
+0e5ba50 ADIT: completo, falta revisar
+236bd58 ADIT: resultados ajustes tds aditivos add, nao discutidos
+df17dbd ADIT: colecole, inicio escrita oscilatorio
+f4df82f ADIT: terminado tratamento oscilatório, não add no texto
+a5b3b31 ADIT: resultados do oscilatório, começo
+8df1ece TEO: final Hamaker, DLVO. sin->sen. PLS e OLS com eqs
+6ef5b33 TEO: inicio cte de Hamaker
+d94fd83 TEO: terminado dispersiva, começo vdw
+299d6e4 Final anot. Israelachvili. TEO: interações intermoleculares
+3f59aa2 ADIT: explicações dos parâmetros, anotações do livro de solventes
+99f8770 ADIT: dendrograma, conclusoes parciais
+a5f886f ADIT: PLS e OLS terminados. Dendrograma feito, falta colocar
+dd42d69 ADIT: PLS Pir, Python, eqs
+afdec46 ADIT: finalizado disc. artigo, inicio analise multivariada
+02bf391 ADIT: muitas figuras ITC adicionadas
+59f4f3c ADIT: inicio discussão, muitos plots feitos de RH e ITC
+ad5f074 TEO: cdots. Plots de reologia RH, ITC WLM e CMC
+ce9eb41 TEO: reescrita total da parte de SAXS, usando Otto Glatter
+d8d22e2 TEO: fluorescência terminado, falta revisar
+f3a2274 TEO: equações SAXS do Peders., esp. lam. movida para TEO
+474aa15 TEO: fim ruim ITC, início SAXS
+ac15479 TEO: algumas figuras de ITC, equações
+a852e2a INT: figuras. TEO: comecinho ITC
+7f1c459 TEO: final Maxwell, gráficos comparativos
+aa3b35e TEO: Reol inicio eqs, figura simulacao reol osc
+a101f4b TEO: New, NNewt, inicio osc
+995209f TEO: início reologia, sem matematica
+74d7c44 INT: inicio algumas refs. TUDO: $$ para \(\)
+76cadeb INT: finalizado por cima, mudança estrutura, CTAB para C16TAB
+15ba65d INT: início
+c6c41ba MM: Final, restam detalhes
+83a80bf MM: Descrição inicial fluorescência
+d656961 CF Trat. ITC Ureia, Mat e Mét até SAXS
+d925eb7 Ap: código muco, update ureia 300, inicio parte experimental
+c8e3979 Ap: Códigos pequenos e guia supersaxs
+876d8fe Código CF e Osc Carla terminados
+f98a90a Códigos SAXS terminados, início código reologia
+86e48e9 Ureia finalizado, inicio código Apendice
+1f86e3b DSC ureia refeitos com área por g
+9c59740 DLS ureia ajustado, começo ITC ureia
+0e6ede6 DLS de ureia ajustado
+a8400ed Ureia SAXS final, DLS começo
+57a45b4 SAXS ureia mais ME, sólidos
+14f9a64 SAXS ureia ME qcorr e dim
+2945c8f SAXS ureia detalhada, micelas esférica com e sem ureia
+7241476 Mais algumas figuras de SAXS
+95a9747 Opções sublime text
+05906e3 Novas imagens SAXS Ur
+09e08a3 Subl e um pouco de ureia
+248b5a4 Final DSC, comeco SAXS ureia
+af6cfc5 Img png->pdf, visual DSC
+860d47b Tabelas para IBGE, main.pdf removido
+495afdf Tabelas terminadas
+3d99dfa Limpeza, novas imagens DSC
+714fad5 synctex teimoso
+efdd62b Imagens DSC adicionadas
+cd4dbc7 Comecei a escrever sobre ureia
+395d313 AP Modelo Mat MG - falta revisar
+dfbc690 teste indice -A
+b1de3dd teste indice
+e328113 .gitignore
+5ed030f Inicial
