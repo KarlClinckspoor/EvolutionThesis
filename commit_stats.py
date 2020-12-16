@@ -41,6 +41,111 @@ def create_Counter_obj(text: str) -> Counter:
     return word_counter
 
 
+def count_latex_commands(text: str) -> Counter:
+    """Counts the number of \begin \label \index, etc.
+
+    Args:
+        text (str): Full text
+
+    Returns:
+        Counter: Counter object with the commands
+    """
+    # Regex translation: Anything that starts with "\"
+    latex_command_regex = re.compile(r"\\\w+")
+    commands = latex_command_regex.findall(text)
+    command_counter = Counter(commands)
+    return command_counter
+
+
+def count_latex_environments(text: str) -> Counter:
+    """Counts the number of environments such as \begin{figure}, etc
+
+    Args:
+        text (str): Full text
+
+    Returns:
+        Counter: Counter object with the environment instances
+    """
+    # Regex translation: match everything that starts with \begin, then has an
+    # optional, noncapturing group composed of anything between [],
+    # lazily matched, and then get the environment name proper between {}.
+    latex_env_regex = re.compile(r"\\begin(?:\[.*?\])?{(\w+)}")
+    envs = latex_env_regex.findall(text)
+    env_counter = Counter(envs)
+    return env_counter
+
+
+def count_equations(text: str) -> dict:
+    # Disabled: Merged two regexes into the one below
+    # Regex translation: anything surrounded by "$ ... $", that's at least 1
+    # character, and doesn't isn't "$$", which is the line equation
+    # old_inline_eq_regex = re.compile(r"\$(?<!\$).+?(?!\$)\$")
+
+    # Disabled: Merged two regexes into the one below
+    # Regex translation: anything surrounded by "$$ ... $$" that's at least 1
+    # character.
+    # old_line_eq_regex = re.compile(r"\$\$.+?\$\$", flags=re.MULTILINE)
+
+    # Regex translation: anything surrounded by "$ ... $" or "$$ ... $$" that's
+    # at least 1 character. Will store the middle part for testing (stray $ in
+    # the text for example)
+    old_eq_regex = re.compile(r"\$?\$(.+?)\$\$?", flags=re.DOTALL)
+
+    # Regex translation: anything surrounded by "\(...\)", that's at least 1
+    # character, and doesn't isn't "$$", which is the line equation
+    new_inline_eq_regex = re.compile(r"\\\(.+?\\\)")
+
+    ## Regex translation: anything surrounded by "\[ ... \]" that's at least 1 character.
+    new_line_eq_regex = re.compile(r"\\\[.*?\\\]", flags=re.DOTALL)
+
+    # Regex translation: any start of equation environment
+    equation_env_regex = re.compile(r"\\begin{equation\*?}")
+
+    # Regex translation: any start of subequation environment
+    subequation_env_regex = re.compile(r"\\begin{subequation\*?}")
+
+    old_eq_counter = [
+        1
+        for match in old_eq_regex.finditer(text)  # if len(match.group()) < 500
+    ]
+    monitor_old_eq_counter = [
+        match
+        for match in old_eq_regex.finditer(text)
+        if len(match.group()) > 250
+    ]
+    line_eq_counter = [
+        1
+        for match in new_line_eq_regex.finditer(
+            text
+        )  # if len(match.group()) < 500
+    ]
+    inline_eq_counter = [
+        1
+        for match in new_inline_eq_regex.finditer(
+            text
+        )  # if len(match.group()) < 500
+    ]
+    eq_env_counter = [
+        1
+        for match in equation_env_regex.finditer(
+            text
+        )  # if len(match.group()) < 500
+    ]
+    subeq_env_counter = [
+        1
+        for match in subequation_env_regex.finditer(
+            text
+        )  # if len(match.group()) < 500
+    ]
+    return {
+        "old Eq": old_eq_counter,
+        "New LEq": line_eq_counter,
+        "New ILEq": inline_eq_counter,
+        "Eq Env": eq_env_counter,
+        "SubEq Env": subeq_env_counter,
+    }
+
+
 def remove_comments(text: str) -> str:
     """Removes comments from the text using a simple regex
 
@@ -50,10 +155,10 @@ def remove_comments(text: str) -> str:
     Returns:
         str: Text string removing everything after a %
     """
-    # From start of the line, select everything until the first % (lazily), if
-    # it is not preceded by \ (i.e. escaped). Then group everything from % to
+    # From start of the line, group everything until the first % (lazily), if
+    # it is not preceded by \ (i.e. escaped). Then match everything from % to
     # the end of the line.
-    comment_regex = re.compile(r"(^.*?)((?<!\\)%.*$)")
+    comment_regex = re.compile(r"(^.*?)((?<!\\)%.*$)", flags=re.MULTILINE)
     splitted_text = text.split("\n")
     for i, line in enumerate(splitted_text):
         # Not a list comprehension to make debugging easier
@@ -63,33 +168,112 @@ def remove_comments(text: str) -> str:
 
 
 def remove_includegraphics(text: str) -> str:
-    # TODO
-    pass
+    """Removes a includegraphics command
+
+    Args:
+        text (str): Full text
+
+    Returns:
+        str: Text without \includegraphics[...]{...}
+    """
+    # Regex translation: Everything starting with \includegraphics, perhaps
+    # having [...], and certainly having {...}. Inside, matches are lazy so it
+    # matches something as small as possible.
+    includegraphics_regex = re.compile(r"\\includegraphics(\[.*?\])?({.*?})")
+    cleaned_text = includegraphics_regex.sub("", text)
+    return cleaned_text
 
 
-def remove_labels(text: str) -> str:
-    # TODO
-    pass
+def remove_label(text: str) -> str:
+    """Removes \label{...} from the text
+
+    Args:
+        text (str): Full text
+
+    Returns:
+        str: Text without \label{...}
+    """
+    # Regex translation: Everything that starts with \label and then has {...},
+    # with lazy matching.
+    label_regex = re.compile(r"\\label({.*?})")
+    cleaned_text = label_regex.sub("", text)
+    return cleaned_text
 
 
 def remove_index(text: str) -> str:
-    # TODO
-    pass
+    """Removes \index{...} from the text
+
+    Args:
+        text (str): Full text
+
+    Returns:
+        str: Text without \index{...}
+    """
+    # Everything that has \index and then {...}
+    index_regex = re.compile(r"\\index({.*?})")
+    cleaned_text = index_regex.sub("", text)
+    return cleaned_text
+
+
+def remove_cite(text: str) -> str:
+    """Removes \cite{...} and \citeauthor{...} from the text
+
+    Args:
+        text (str): Full text
+
+    Returns:
+        str: Text without \cite{...} and \citeauthor{...}
+    """
+    cite_regex = re.compile(r"\\cite(author)?({.*?})?")
+    cleaned_text = cite_regex.sub("", text)
+    return cleaned_text
 
 
 def remove_equation_envs(text: str) -> str:
-    # TODO
-    equation_env_regex = re.compile(r"\\begin{equation}.*\\end{equation}")
-    equation_env_regex2 = re.compile(r"\\begin{equation*}.*\\end{equation*}")
+    equation_env_regex = re.compile(
+        r"\\begin{equation\*?}.*?\\end{equation\*?}",
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    cleaned_text = equation_env_regex.sub("", text)
+    return cleaned_text
 
 
-def remove_citations(text: str) -> str:
-    # TODO
-    pass
+def remove_subfigures(text: str) -> str:
+    subfigure_env_regex = re.compile(
+        r"\\begin{subfigure\*?}.*?\\end{subfigure\*?}",
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    cleaned_text = subfigure_env_regex.sub("", text)
+    return cleaned_text
+
+
+def remove_itemize(text: str) -> str:
+    itemize_env_regex = re.compile(
+        r"\\begin{itemize\*?}.*?\\end{itemize\*?}",
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    cleaned_text = itemize_env_regex.sub("", text)
+    return cleaned_text
+
+
+def remove_enumerate(text: str) -> str:
+    enumerate_env_regex = re.compile(
+        r"\\begin{enumerate\*?}.*?\\end{enumerate\*?}",
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    cleaned_text = enumerate_env_regex.sub("", text)
+    return cleaned_text
+
+
+def remove_references(text: str) -> str:
+    ref_regex = re.compile(r"\\(auto)?ref(\[.*\])?({.*})?")
+    citeauthor_regex = re.compile(r"\\citeauthor(\[.*\])?({.*})?")
+    temp_text = cite_regex.sub("", text)
+    cleaned_text = citeauthor_regex.sub("", temp_text)
+    return cleaned_text
 
 
 def remove_unnumbered_equations(text: str) -> str:
-    # TODO
     # Regex translation: anything surrounded by "$ ... $", that's at least 1
     # character, and doesn't isn't "$$", which is the line equation
     old_inline_eq_regex = re.compile(r"\$(?<!\$).+?(?!\$)\$")
@@ -174,4 +358,30 @@ def test2():
         )
 
 
-test2()
+def test3():
+    path = pathlib.Path(thesis_path)
+    files = glob.glob(str(path / "*.tex"))
+    fulltext = ""
+    for file in files:
+        text = open_file(file)
+        text = remove_comments(text)
+        fulltext += text
+    latex_commands = count_latex_commands(fulltext)
+    latex_envs = count_latex_environments(fulltext)
+    print(latex_commands)
+    print(latex_envs)
+    with open("latex_commands.txt", "w") as fhand:
+        for key, value in sorted(
+            latex_commands.items(), key=lambda x: x[1], reverse=True
+        ):
+            fhand.write(key + ";" + str(value) + "\n")
+    with open("latex_envs.txt", "w") as fhand:
+        for key, value in sorted(
+            latex_envs.items(), key=lambda x: x[1], reverse=True
+        ):
+            fhand.write(key + ";" + str(value) + "\n")
+    return latex_commands, latex_envs
+
+
+# test2()
+test3()
