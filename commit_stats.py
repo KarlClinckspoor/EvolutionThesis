@@ -8,6 +8,31 @@ import re
 from collections import Counter, namedtuple
 import pathlib
 import pdb
+from typing import Union
+import pandas as pd
+
+try:
+    import nltk
+except ModuleNotFoundError:
+    print("Please install nltk")
+try:
+    nltk.data.find("corpora/stopwords")
+except LookupError:
+    nltk.download("stopwords")
+try:
+    from nltk.stem import rslp
+except LookupError:
+    nltk.download("rslp")
+try:
+    from nltk.stem.snowball import SnowballStemmer
+except LookupError:
+    nltk.download("snowball_data")
+
+
+def open_file(filepath: Union[str, pathlib.Path]) -> str:
+    """Opens a file"""
+    text = open(str(filepath), "r", encoding="utf8").read()
+    return text
 
 
 # TODO: is this a good way of implementing the class? I think I need some
@@ -18,8 +43,12 @@ class Stats:
     def __init__(
         self,
         filename: str,
-        output_path: str = ".",
-        debug_output_path: str = ".",
+        text: str,
+        description: str = "nothing",
+        commit_hash: str = "nothing",
+        output_path: Union[str, pathlib.Path] = ".",
+        debug_output_path: Union[str, pathlib.Path] = ".",
+        number_most_common=50,
     ):
         """Creates an instance of a Stats class. To calculate, need to run
         calculate_stats, to save as a text file, need to run save_as_text, to
@@ -30,27 +59,80 @@ class Stats:
         """
         self.filename = filename
         self.basename = os.path.basename(filename)
-        self.open_file(filename)
+        self.text = text
         self.original_text = self.text[:]
-        self.output_path = output_path
-        self.debug_output_path = debug_output_path
+        self.output_path = pathlib.Path(output_path)
+        self.debug_output_path = pathlib.Path(debug_output_path)
+        self.description = description
+        self.commit_hash = commit_hash
+        self.number_most_common = number_most_common
 
-    def open_file(self, filepath: str) -> None:
-        """Opens a file"""
-        self.text = open(filepath, "r", encoding="utf8").read()
+    def tokenize_text(self) -> None:
+        """Creates a long list of all the words in the text, excluding any latex
+        commands, and not cleaned"""
+        word_regex = re.compile(r"(?<!\\)(?<!{)\b\w+\b(?!})")
+        self.tokens = word_regex.findall(self.text.lower())
+
+    def create_unique_tokens(self) -> None:
+        """Uses the tokens available to create a set of unique tokens"""
+        self.unique_tokens = list(set(self.tokens))
 
     def count_words(self):
         """Counts words in the text, not escaped by \ (i.e., no commands). Will
-        count comments and single-letter words also."""
+        count comments and single-letter words also, so be careful"""
         # Regex Translation: Ignores everything preceded by \, like \chapter,
         # etc
-        word_regex = re.compile(r"(?<!\\)\b\w+\b")
-        self.word_count = len(word_regex.findall(self.text))
+        self.word_count = len(self.tokens)
 
     def count_unique_words(self) -> None:
-        """Removes word duplicates"""
-        word_regex = re.compile(r"(?<!\\)\b\w+\b")
-        self.unique_word_count = len(set(word_regex.findall(self.text)))
+        """Don't consider repeated words"""
+        self.unique_word_count = len(self.unique_tokens)
+
+    def Counter_words(self) -> None:
+        """Creates a dictionary (specifically a collections.Counter) that
+        contains the most used words in the text, but all lowercase
+        """
+        self.word_Counter = Counter(self.tokens)
+
+    def stemmatize_words(self) -> None:
+        """Get the stems of words using RSLP Stemmer"""
+        stemmer = rslp.RSLPStemmer()
+        self.stems = [stemmer.stem(word) for word in self.tokens]
+        self.unique_stems = list(
+            set([stemmer.stem(word) for word in self.unique_tokens])
+        )
+
+    def stemmatize_nonstopping_words(self) -> None:
+        """Get the stems of nonstopping words using RSLP"""
+        stemmer = rslp.RSLPStemmer()
+        self.nonstopping_stems = [
+            stemmer.stem(word) for word in self.reduced_tokens
+        ]
+        self.unique_nonstopping_stems = list(set(self.nonstopping_stems))
+
+    def stemmatize_words_(self) -> None:
+        """Get the stems of words using SnowballStemmer"""
+
+        stemmer = SnowballStemmer("portuguese")
+        self.stems = [stemmer.stem(word) for word in self.tokens]
+        self.unique_stems = list(
+            set([stemmer.stem(word) for word in self.unique_tokens])
+        )
+
+    def stemmatize_nonstopping_words_(self) -> None:
+        """Get the stems of nonstopping words using SnowballStemmer"""
+        stemmer = SnowballStemmer("portuguese")
+        self.nonstopping_stems = [
+            stemmer.stem(word) for word in self.reduced_tokens
+        ]
+        self.unique_nonstopping_stems = list(set(self.nonstopping_stems))
+
+    def Counter_stems(self) -> None:
+        self.stem_Counter = Counter(self.stems)
+
+    def Counter_nonstopping_stems(self) -> None:
+        """Creates Counter object of the nonstopping stems"""
+        self.nonstopping_stem_Counter = Counter(self.nonstopping_stems)
 
     def count_equations(self) -> None:
         """Counts separately equations in the form of $ ... $ and $$ ... $$, \( ...
@@ -95,17 +177,6 @@ class Stats:
         self.inline_eq_count = len(new_inline_eq_regex.findall(self.text))
         self.eq_env_count = len(equation_env_regex.findall(self.text))
         self.subeq_env_count = len(subequation_env_regex.findall(self.text))
-
-    def Counter_words(self) -> None:
-        """Creates a dictionary (specifically a collections.Counter) that
-        contains the most used words in the text, but all lowercase
-        """
-        # Regex translation: Find everything not escaped (preceded by \), not
-        # preceded by "{", not followed by "}", that's made by word characters (\w)
-        # between two word boundaries (\b).
-        word_regex = re.compile(r"(?<!\\)(?<!{)\b\w+\b(?!})")
-        words = word_regex.findall(self.text.lower())
-        self.word_Counter = Counter(words)
 
     def Counter_latex_commands(self) -> None:
         """Counts the number of \begin \label \index, etc. """
@@ -262,30 +333,39 @@ class Stats:
 
     def remove_common_words(self) -> None:
         """Removes common words (stopwords) from the word Counter object. """
-        try:
-            import nltk
-        except ModuleNotFoundError:
-            print("Please install nltk")
-        try:
-            nltk.data.find("corpora/stopwords")
-        except LookupError:
-            nltk.download("stopwords")
 
         stopwords = nltk.corpus.stopwords.words("portuguese")
-        self.reduced_word_Counter = self.word_Counter.copy()
-        for word in stopwords:
-            del self.reduced_word_Counter[word]
+        self.reduced_tokens = [
+            word for word in self.tokens if word not in stopwords
+        ]
+        self.reduced_word_Counter = Counter(self.reduced_tokens)
 
-    def remove_spurious_words(self) -> None:
-        """Removes words that are just numbers or single letter words with no
-        meaning (e.g. "c", "d", etc)"""
-        # TODO: complete
-        pass
+    def remove_words_with_numerals(self) -> None:
+        """Removes words that contain numerals"""
+        self.tokens = [word for word in self.tokens if word.isalpha()]
+        # for i, word in enumerate(self.tokens):
+        #     if not word.isalpha():
+        #         self.tokens.remove(word)
+
+    def remove_single_letter_words(self) -> None:
+        """Removes words with length 1, but which aren't articles (a, e, o)"""
+        acceptable_1_letter_words = ["a", "e", "o", "é", "á", "à", "ó"]
+        self.tokens = [
+            word
+            for word in self.tokens
+            if (
+                (
+                    (len(word) == 1)
+                    and (word in acceptable_1_letter_words)
+                    or len(word) > 1
+                )
+            )
+        ]
 
     def calculate_stats(self) -> None:
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "original",
                 self.original_text,
                 restart=True,
@@ -295,7 +375,7 @@ class Stats:
         self.remove_comments()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "wo comments",
                 self.text,
             )
@@ -338,80 +418,100 @@ class Stats:
         self.remove_includegraphics()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "wo includegraphics",
                 self.text,
             )
         self.remove_label()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "wo label",
                 self.text,
             )
         self.remove_index()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "wo index",
                 self.text,
             )
         self.remove_citations()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "wo cite",
                 self.text,
             )
         self.remove_references()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "wo refs",
                 self.text,
             )
         self.remove_unnumbered_equations()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "wo unnum eq",
                 self.text,
             )
         self.remove_equation_envs()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "wo eq envs",
                 self.text,
             )
         self.remove_inputminted()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "wo inputminted",
                 self.text,
             )
         self.remove_subfigure_envs()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path + self.basename + "-test.txt",
+                self.debug_output_path / (self.basename + "-test.txt"),
                 "wo subfigs",
                 self.text,
             )
 
+        # Tokenize text (split into words)
+        self.tokenize_text()
+        # Remove words with numbers
+        self.remove_words_with_numerals()
+        # Remove single letter words that are not articles (like "c" in tabular
+        # envs)
+        self.remove_single_letter_words()
+        # Create a unique set of words
+        self.create_unique_tokens()
         # Count number of words
         self.count_words()
         # Of these, how many are unique?
         self.count_unique_words()
         # Rank the words by usage
         self.Counter_words()
-        # Rank the interesting words (removes stopping words)
+        # Remove stopping words
         self.remove_common_words()
+        # Stemmatize words
+        self.stemmatize_words_()
+        # Stemmatize nonstopping words
+        self.stemmatize_nonstopping_words_()
+        # Count stems
+        self.Counter_stems()
+        # Count nonstopping stems
+        self.Counter_nonstopping_stems()
 
-    def save_as_text(self) -> None:
+    def __str__(self) -> str:
         self.stats_text = (
+            f"Stats for {self.filename} - commit {self.commit_hash} - description - {self.description}\n"
             f"word count: {self.word_count} \n"
             f"unique word count {self.unique_word_count}\n"
+            f"stem count {len(self.stems)}\n"
+            f"unique stem count {len(self.unique_stems)}\n"
             f"--- Sectioning of the text --- \n"
             f"parts: {self.part_count} \n"
             f"chapters: {self.chapter_count} \n"
@@ -436,16 +536,27 @@ class Stats:
             f"footnotes: {self.footnote_count} \n"
             f"Usage of references: \n {self.references_Counter} \n"
             f"--- LaTeX stuff --- \n"
+            f"count of latex commands: {sum(self.command_Counter.values())}\n"
             f"latex commands: {self.command_Counter}\n"
+            f"count of latex environments: {sum(self.env_Counter.values())}\n"
             f"latex environments: {self.env_Counter}\n"
             f"--- Most common words --- \n"
-            f"word_counter: \n {self.word_Counter.most_common(50)} \n"
-            f"better word counter: \n {self.reduced_word_Counter.most_common(50)} \n"
+            f"most common words: \n {self.word_Counter.most_common(self.number_most_common)} \n"
+            f"most common interesting words: \n {self.reduced_word_Counter.most_common(self.number_most_common)} \n"
+            f"most common stems: \n {self.stem_Counter.most_common(self.number_most_common)} \n"
+            f"most common nonstopping stems: \n {self.nonstopping_stem_Counter.most_common(self.number_most_common)} \n"
         )
+        return self.stats_text
+
+    def save_as_text(self) -> None:
         with open(
-            self.output_path + "Stats for " + self.basename + ".txt", "w"
+            self.output_path / ("Stats for " + self.basename + ".txt"), "w"
         ) as fhand:
-            fhand.write(self.stats_text)
+            fhand.write(self.__str__())
+
+    def pickle(self) -> None:
+        # TODO
+        pass
 
     def _save_intermediary_text(
         self, filename, annotation: str, text: str, restart=False
@@ -456,26 +567,114 @@ class Stats:
             mode = "a"
         if restart:
             mode = "w"
-        with open(filename, mode) as fhand:
+        with open(str(filename), mode) as fhand:
             fhand.write("-" * 80 + "\n")
             fhand.write(annotation.center(80) + "\n")
             fhand.write("-" * 80 + "\n")
             fhand.write(text)
 
     def save_as_csv(self) -> None:
-        pass
+        """Converts object into a series then saves it as a csv file. Note: If
+        you want to recover the Counter objects, an eval might work!
+        """
+        self.to_Series()
+        self.series.to_csv(self.output_path / (self.filename + ".csv"))
+
+    def to_Series(self) -> pd.Series:
+        """Converts the class into a pandas Series object.
+
+        Returns:
+            pd.Series: Class converted into a Series object
+        """
+        data_dict = dict(
+            filename=self.filename,
+            commit_hash=self.commit_hash,
+            description=self.description,
+            word_count=self.word_count,
+            unique_word_count=self.unique_word_count,
+            stem_count=len(self.stems),
+            unique_stem_count=len(self.unique_stems),
+            #       --- Sectioning of the text --- ,
+            parts=self.part_count,
+            chapters=self.chapter_count,
+            sections=self.section_count,
+            subsections=self.subsection_count,
+            subsubsections=self.subsubsection_count,
+            #            --- Referencing --- ,
+            page_cross_references=self.page_crossref,
+            figure_table_listing_cross_references=self.other_crossref,
+            #            --- Floats --- ,
+            figures=self.figure_count,
+            subfigures=self.subfigure_count,
+            subfigures_in_figures=self.subfigures_in_figures_Counter,
+            includegraphics=self.includegraphics_count,
+            equations=self.equation_counts,
+            listings=self.listing_count,
+            intputminted=self.inputminted,
+            tables=self.table_count,
+            #            --- Bibliographic stuff ---,
+            citations=self.citation_counts,
+            index_entries=self.index_count,
+            footnotes=self.footnote_count,
+            # --- LaTeX stuff --- ,
+            latex_command_count=sum(self.command_Counter.values()),
+            latex_commands=self.command_Counter,
+            latex_env_count=sum(self.env_Counter.values()),
+            latex_environments=self.env_Counter,
+            # --- Most common words --- ,
+            most_common_words=self.word_Counter.most_common(
+                self.number_most_common
+            ),
+            most_common_nonstopping_words=self.reduced_word_Counter.most_common(
+                self.number_most_common
+            ),
+            most_common_stems=self.stem_Counter.most_common(
+                self.number_most_common
+            ),
+            most_common_nonstopping_stems=self.nonstopping_stem_Counter.most_common(
+                self.number_most_common
+            ),
+        )
+        self.series: pd.Series = pd.Series(data_dict, name="Stats")
+        return self.series
 
 
-def main():
+def usage_example():
     path = pathlib.Path(thesis_path)
     tex_files = glob.glob(str(path / "*.tex"))
     list_of_Stats = []
+    full_text = []
     for file in tex_files:
-        st = Stats(file, stats_basepath, stats_basepath)
-        st.calculate_stats()
-        st.save_as_text()
-        list_of_Stats.append(st)
+        text = open_file(file)
+        # st = Stats(
+        #     file,
+        #     text=text,
+        #     commit_hash="test",
+        #     description="test",
+        #     output_path=stats_basepath,
+        #     debug_output_path=stats_basepath,
+        # )
+        # st.calculate_stats()
+        # st.save_as_text()
+        # list_of_Stats.append(st)
+        full_text.append(text)
+    full_text = "\n".join(full_text)
+    st = Stats(
+        "all",
+        full_text,
+        commit_hash="test",
+        description="all",
+        output_path=stats_basepath,
+        debug_output_path=stats_basepath,
+        number_most_common=100,
+    )
+    st.debug = False
+    st.calculate_stats()
+    st.save_as_text()
+    list_of_Stats.append(st)
+    st.save_as_csv()
+    return list_of_Stats
 
 
 if __name__ == "__main__":
-    main()
+    stats = usage_example()
