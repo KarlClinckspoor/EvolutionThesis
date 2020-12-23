@@ -10,6 +10,7 @@ import pathlib
 import pdb
 from typing import Union
 import pandas as pd
+import pickle
 
 try:
     import nltk
@@ -38,24 +39,32 @@ def open_file(filepath: Union[str, pathlib.Path]) -> str:
 # TODO: is this a good way of implementing the class? I think I need some
 # decorators, getters and setters
 class Stats:
-    debug = True
+    debug = False
 
     def __init__(
         self,
         filename: str,
         text: str,
+        date: str = "00000000",
         description: str = "nothing",
         commit_hash: str = "nothing",
         output_path: Union[str, pathlib.Path] = ".",
         debug_output_path: Union[str, pathlib.Path] = ".",
-        number_most_common=50,
+        number_most_common: int = 50,
     ):
         """Creates an instance of a Stats class. To calculate, need to run
         calculate_stats, to save as a text file, need to run save_as_text, to
         save as a table, need to run save_as_csv.
 
                 Args:
-                    filename (str): path to file
+                    filename (str): File name
+                    text (str): contents of the file
+                    date (str): date in a parseable format by datetime
+                    description (str): brief description (like commit info)
+                    commit_hash (str): sha1 hash of the commit
+                    output_path (str): folder where the files will be stored
+                    debug_output_path (str): folder where the debug documents will be stored.
+                    number_most_common (int): number of most common items to be included in the Counters
         """
         self.filename = filename
         self.basename = os.path.basename(filename)
@@ -66,6 +75,7 @@ class Stats:
         self.description = description
         self.commit_hash = commit_hash
         self.number_most_common = number_most_common
+        self.date = date
 
     def tokenize_text(self) -> None:
         """Creates a long list of all the words in the text, excluding any latex
@@ -507,7 +517,7 @@ class Stats:
 
     def __str__(self) -> str:
         self.stats_text = (
-            f"Stats for {self.filename} - commit {self.commit_hash} - description - {self.description}\n"
+            f"Stats for {self.filename} - commit {self.commit_hash} - description - {self.description} - date {self.date}\n"
             f"word count: {self.word_count} \n"
             f"unique word count {self.unique_word_count}\n"
             f"stem count {len(self.stems)}\n"
@@ -555,8 +565,12 @@ class Stats:
             fhand.write(self.__str__())
 
     def pickle(self) -> None:
-        # TODO
-        pass
+        with open(
+            self.output_path
+            / (self.basename + "-" + self.commit_hash + ".pkl"),
+            "wb",
+        ) as fhand:
+            pickle.dump(self, fhand)
 
     def _save_intermediary_text(
         self, filename, annotation: str, text: str, restart=False
@@ -590,6 +604,7 @@ class Stats:
             filename=self.filename,
             commit_hash=self.commit_hash,
             description=self.description,
+            date=self.date,
             word_count=self.word_count,
             unique_word_count=self.unique_word_count,
             stem_count=len(self.stems),
@@ -639,6 +654,24 @@ class Stats:
         return self.series
 
 
+def fix_specific_things(stats: Stats) -> Stats:
+    # Replace nasal with NaSal
+    stats.word_Counter["NaSal"] = stats.word_Counter["nasal"]
+    stats.word_Counter["nasal"] = 0
+    stats.reduced_word_Counter["NaSal"] = stats.reduced_word_Counter["nasal"]
+    stats.reduced_word_Counter["nasal"] = 0
+    occurrence_micelas_gigantes = re.findall(r"micelas gigantes", stats.text)
+    occurrence_micelas_only = re.findall(r"micelas ?(?!gigantes)", stats.text)
+    stats.word_Counter["micelas"] = len(occurrence_micelas_only)
+    stats.word_Counter["micelas gigantes"] = len(occurrence_micelas_gigantes)
+    stats.reduced_word_Counter["micelas"] = len(occurrence_micelas_only)
+    stats.reduced_word_Counter["micelas gigantes"] = len(
+        occurrence_micelas_gigantes
+    )
+
+    return stats
+
+
 def usage_example():
     path = pathlib.Path(thesis_path)
     tex_files = glob.glob(str(path / "*.tex"))
@@ -646,23 +679,24 @@ def usage_example():
     full_text = []
     for file in tex_files:
         text = open_file(file)
-        # st = Stats(
-        #     file,
-        #     text=text,
-        #     commit_hash="test",
-        #     description="test",
-        #     output_path=stats_basepath,
-        #     debug_output_path=stats_basepath,
-        # )
-        # st.calculate_stats()
-        # st.save_as_text()
-        # list_of_Stats.append(st)
+        st = Stats(
+            file,
+            text=text,
+            commit_hash="test",
+            description="test",
+            output_path=stats_basepath,
+            debug_output_path=stats_basepath,
+        )
+        st.calculate_stats()
+        st.save_as_text()
+        st.pickle()
+        list_of_Stats.append(st)
         full_text.append(text)
     full_text = "\n".join(full_text)
     st = Stats(
         "all",
         full_text,
-        commit_hash="test",
+        commit_hash="hash",
         description="all",
         output_path=stats_basepath,
         debug_output_path=stats_basepath,
@@ -673,8 +707,29 @@ def usage_example():
     st.save_as_text()
     list_of_Stats.append(st)
     st.save_as_csv()
+    st.pickle()
     return list_of_Stats
 
 
-if __name__ == "__main__":
-    stats = usage_example()
+def create_stats_all_tex_files(
+    filename: str, commit_hash: str, description: str
+) -> Stats:
+    path = pathlib.Path(thesis_path)
+    tex_files = glob.glob(str(path / "*.tex"))
+    full_text = []
+    for file in tex_files:
+        text = open_file(file)
+        full_text.append(text)
+    full_text_str = "\n".join(full_text)
+    st = Stats(
+        "all",
+        full_text_str,
+        commit_hash=commit_hash,
+        description=description,
+        output_path=stats_basepath,
+        debug_output_path=stats_basepath,
+        number_most_common=100,
+    )
+    st.calculate_stats()
+    st = fix_specific_things(st)
+    return st
