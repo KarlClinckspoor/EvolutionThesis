@@ -43,13 +43,13 @@ class Stats:
 
     def __init__(
         self,
-        filename: str,
+        name: str,
         text: str,
         date: str = "00000000",
         description: str = "nothing",
         commit_hash: str = "nothing",
-        output_path: Union[str, pathlib.Path] = ".",
-        debug_output_path: Union[str, pathlib.Path] = ".",
+        output_path: str = ".",
+        debug_output_path: str = ".",
         number_most_common: int = 50,
     ):
         """Creates an instance of a Stats class. To calculate, need to run
@@ -66,8 +66,7 @@ class Stats:
                     debug_output_path (str): folder where the debug documents will be stored.
                     number_most_common (int): number of most common items to be included in the Counters
         """
-        self.filename = filename
-        self.basename = os.path.basename(filename)
+        self.name = name
         self.text = text
         self.original_text = self.text[:]
         self.output_path = pathlib.Path(output_path)
@@ -375,7 +374,7 @@ class Stats:
     def calculate_stats(self) -> None:
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "original",
                 self.original_text,
                 restart=True,
@@ -385,7 +384,7 @@ class Stats:
         self.remove_comments()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "wo comments",
                 self.text,
             )
@@ -428,63 +427,63 @@ class Stats:
         self.remove_includegraphics()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "wo includegraphics",
                 self.text,
             )
         self.remove_label()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "wo label",
                 self.text,
             )
         self.remove_index()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "wo index",
                 self.text,
             )
         self.remove_citations()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "wo cite",
                 self.text,
             )
         self.remove_references()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "wo refs",
                 self.text,
             )
         self.remove_unnumbered_equations()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "wo unnum eq",
                 self.text,
             )
         self.remove_equation_envs()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "wo eq envs",
                 self.text,
             )
         self.remove_inputminted()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "wo inputminted",
                 self.text,
             )
         self.remove_subfigure_envs()
         if self.debug:
             self._save_intermediary_text(
-                self.debug_output_path / (self.basename + "-test.txt"),
+                self.debug_output_path / (self.name + "-test.txt"),
                 "wo subfigs",
                 self.text,
             )
@@ -517,7 +516,7 @@ class Stats:
 
     def __str__(self) -> str:
         self.stats_text = (
-            f"Stats for {self.filename} - commit {self.commit_hash} - description - {self.description} - date {self.date}\n"
+            f"Stats for {self.name} - commit {self.commit_hash} - description - {self.description} - date {self.date}\n"
             f"word count: {self.word_count} \n"
             f"unique word count {self.unique_word_count}\n"
             f"stem count {len(self.stems)}\n"
@@ -560,14 +559,15 @@ class Stats:
 
     def save_as_text(self) -> None:
         with open(
-            self.output_path / ("Stats for " + self.basename + ".txt"), "w"
+            self.output_path
+            / ("Stats for " + self.name + self.commit_hash + ".txt"),
+            "w",
         ) as fhand:
             fhand.write(self.__str__())
 
     def pickle(self) -> None:
         with open(
-            self.output_path
-            / (self.basename + "-" + self.commit_hash + ".pkl"),
+            self.output_path / (self.name + "-" + self.commit_hash + ".pkl"),
             "wb",
         ) as fhand:
             pickle.dump(self, fhand)
@@ -592,7 +592,7 @@ class Stats:
         you want to recover the Counter objects, an eval might work!
         """
         self.to_Series()
-        self.series.to_csv(self.output_path / (self.filename + ".csv"))
+        self.series.to_csv(self.output_path / (self.name + ".csv"))
 
     def to_Series(self) -> pd.Series:
         """Converts the class into a pandas Series object.
@@ -601,7 +601,7 @@ class Stats:
             pd.Series: Class converted into a Series object
         """
         data_dict = dict(
-            filename=self.filename,
+            filename=self.name,
             commit_hash=self.commit_hash,
             description=self.description,
             date=self.date,
