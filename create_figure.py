@@ -13,8 +13,11 @@ import pathlib
 import glob
 import pickle
 import pandas as pd
+import datetime
+from typing import Union, List
 
-debug = True
+debug = False
+matplotlib.rcParams["text.usetex"] = True
 
 
 def create_wordcloud(
@@ -22,7 +25,7 @@ def create_wordcloud(
     width: int = 1920,
     height: int = 1080,
     background_color: str = "white",
-    **kwargs
+    **kwargs,
 ) -> WordCloud:
     """Creates a wordcloud element based on the Stats of a
 
@@ -92,7 +95,7 @@ def create_frame() -> matplotlib.figure.Figure:
     ver_dividing_buffer = 0.01
     subfig_height = 0.3
 
-    ax_header_extra_height = 0.05
+    ax_header_extra_height = -0.1
 
     ax_header_left = ax_text_left + ax_text_width + ver_dividing_buffer
     ax_header_bottom = 1 - margin - subfig_height - ax_header_extra_height
@@ -105,10 +108,20 @@ def create_frame() -> matplotlib.figure.Figure:
         ax_header_height,
     ]
 
-    ax_stats_left = ax_header_left
-    ax_stats_bottom = ax_header_bottom - subfig_height - hor_dividing_buffer
-    ax_stats_width = ax_header_width
-    ax_stats_height = subfig_height
+    ax_stats_extra_height = 0.1
+    ax_stats_buffer_labels = 0.05
+    ax_stats_left = ax_header_left + ax_stats_buffer_labels
+    ax_stats_bottom = (
+        ax_header_bottom
+        - subfig_height
+        - hor_dividing_buffer
+        + ax_stats_buffer_labels
+        - ax_stats_extra_height
+    )
+    ax_stats_width = ax_header_width - ax_stats_buffer_labels
+    ax_stats_height = (
+        subfig_height - ax_stats_buffer_labels + ax_stats_extra_height
+    )
     ax_stats_rect = [
         ax_stats_left,
         ax_stats_bottom,
@@ -117,8 +130,13 @@ def create_frame() -> matplotlib.figure.Figure:
     ]
 
     ax_wc_left = ax_header_left
-    ax_wc_bottom = ax_stats_bottom - subfig_height - hor_dividing_buffer
-    ax_wc_width = ax_stats_width
+    ax_wc_bottom = (
+        ax_stats_bottom
+        - subfig_height
+        - hor_dividing_buffer
+        - ax_stats_buffer_labels
+    )
+    ax_wc_width = ax_header_width
     ax_wc_height = subfig_height
     ax_wc_rect = [ax_wc_left, ax_wc_bottom, ax_wc_width, ax_wc_height]
 
@@ -143,10 +161,10 @@ def create_frame() -> matplotlib.figure.Figure:
     ax_header.set_yticklabels([])
     ax_header.set_yticks([])
 
-    ax_stats.set_xticklabels([])
-    ax_stats.set_xticks([])
-    ax_stats.set_yticklabels([])
-    ax_stats.set_yticks([])
+    # ax_stats.set_xticklabels([])
+    # ax_stats.set_xticks([])
+    # ax_stats.set_yticklabels([])
+    # ax_stats.set_yticks([])
 
     ax_wc.set_xticklabels([])
     ax_wc.set_xticks([])
@@ -206,10 +224,16 @@ def create_frame_with_cb() -> matplotlib.figure.Figure:
         ax_header_height,
     ]
 
-    ax_stats_left = ax_header_left
-    ax_stats_bottom = ax_header_bottom - subfig_height - hor_dividing_buffer
-    ax_stats_width = ax_header_width
-    ax_stats_height = subfig_height
+    ax_stats_buffer_labels = 0.01
+    ax_stats_left = ax_header_left + ax_stats_buffer_labels
+    ax_stats_bottom = (
+        ax_header_bottom
+        - subfig_height
+        - hor_dividing_buffer
+        + ax_stats_buffer_labels
+    )
+    ax_stats_width = ax_header_width - ax_stats_buffer_labels
+    ax_stats_height = subfig_height - ax_stats_buffer_labels
     ax_stats_rect = [
         ax_stats_left,
         ax_stats_bottom,
@@ -257,10 +281,10 @@ def create_frame_with_cb() -> matplotlib.figure.Figure:
     ax_header.set_yticklabels([])
     ax_header.set_yticks([])
 
-    ax_stats.set_xticklabels([])
-    ax_stats.set_xticks([])
-    ax_stats.set_yticklabels([])
-    ax_stats.set_yticks([])
+    # ax_stats.set_xticklabels([])
+    # ax_stats.set_xticks([])
+    # ax_stats.set_yticklabels([])
+    # ax_stats.set_yticks([])
 
     ax_wc.set_xticklabels([])
     ax_wc.set_xticks([])
@@ -284,8 +308,79 @@ def add_colorbar(image, cax):
     plt.colorbar(image, cax=cax)
 
 
-def add_stats_graph(ax_stats, list_of_Stats):
-    pass
+def add_stats_graph(
+    ax_stats,
+    list_of_Stats: List[Stats],
+    start_timestamp: int = 1531090905,
+    attributes: List[str] = ["word_count", "unique_word_count"],
+) -> None:
+    """Creates a graph using the attributes specified, using the list_of_Stats,
+    which can be a subset of the total stats you want to consider.
+
+        Args:
+            ax_stats (matplotlib axis): axis where the graph will be plotted
+            list_of_Stats (List[Stats]): the ordered collection of stats to be added, from oldest to newest.
+            start_timestamp (int, optional): The timestamp of the first commit to be considered. Defaults to 1531090905, which is the first commit I have.
+            attributes (List[str], optional): The attributes of the Stats class that will be plotted
+    """
+    start_date = datetime.datetime.fromtimestamp(start_timestamp)
+    # Y-Axis
+    list_word_counts: List[int] = []
+    list_unique_word_counts: List[int] = []
+    list_fig_count: List[int] = []
+    list_tab_count: List[int] = []
+    list_eq_count: List[int] = []
+    list_list_count: List[int] = []
+    list_latex_comm_count: List[int] = []
+    list_latex_env_count: List[int] = []
+
+    # X-axis
+    list_dates: List[datetime.datetime] = []
+    list_delta: List[datetime.timedelta] = []
+    list_deltas_days: List[float] = []
+
+    for stat in list_of_Stats:
+        # X-axis
+        date = datetime.datetime.fromtimestamp(int(stat.date))
+        delta = date - start_date
+        delta_days = delta.days + delta.seconds / 60 / 60 / 24
+        list_dates.append(date)
+        list_delta.append(delta)
+        list_deltas_days.append(delta_days)
+
+        # Y-axis
+        list_word_counts.append(stat.word_count)
+        list_unique_word_counts.append(stat.unique_word_count)
+        list_fig_count.append(stat.figure_count)
+        list_eq_count.append(stat.equation_counts)
+        list_list_count.append(stat.listing_count)
+        list_latex_comm_count.append(sum(stat.command_Counter.values()))
+        list_latex_env_count.append(sum(stat.env_Counter.values()))
+
+    ax_stats.plot(list_deltas_days, list_word_counts, marker="o", label="Words")
+    ax_stats.plot(
+        list_deltas_days,
+        list_unique_word_counts,
+        marker="o",
+        label="UWords",
+    )
+    ax_stats.plot(list_deltas_days, list_fig_count, marker="o", label="Figs")
+    ax_stats.plot(list_deltas_days, list_eq_count, marker="o", label="Eqs")
+    ax_stats.plot(list_deltas_days, list_list_count, marker="o", label="List")
+    ax_stats.plot(
+        list_deltas_days,
+        list_latex_comm_count,
+        marker="o",
+        label="LComm",
+    )
+    ax_stats.plot(
+        list_deltas_days,
+        list_latex_env_count,
+        marker="o",
+        label="LEnv",
+    )
+    ax_stats.legend(fontsize=6)
+    ax_stats.set(xlabel="Days", ylabel="count")
 
 
 def test_stats():
@@ -329,17 +424,42 @@ def test_wordcloud():
 
 
 def test_stats_graph():
+    files = glob.glob("./stats/*.pkl")
+    list_of_Stats = []
+    for file in files:
+        with open(file, "rb") as fhand:
+            st = pickle.load(fhand)
+            list_of_Stats.append(st)
+    list_of_Stats.sort(key=lambda x: x.date, reverse=True)
+    fig, ax_text, ax_header, ax_stats, ax_wc = create_frame()
+    add_stats_graph(ax_stats, list_of_Stats[2:])
+    ax_stats.set_yscale("log")
+    plt.show()
+
+
+def test_stats_graph2():
+    files = glob.glob("./stats/*.pkl")
+    list_of_Stats = []
+    for file in files:
+        with open(file, "rb") as fhand:
+            st = pickle.load(fhand)
+            list_of_Stats.append(st)
+    list_of_Stats.sort(key=lambda x: x.date)
+    for i, stat in enumerate(list_of_Stats):
+        if i + 1 > len(list_of_Stats) - 3:
+            continue
+        fig, ax_text, ax_header, ax_stats, ax_wc = create_frame()
+        add_stats_graph(ax_stats, list_of_Stats[: i + 1])
+        ax_stats.set_yscale("log")
+        fig.savefig(f"./figs/{i}.jpg", dpi=100)
+        plt.close(fig)
+
+
+def test_header():
     with open("temp_stats.pkl", "rb") as fhand:
         st = pickle.load(fhand)
-    commits_dates = pd.read_csv("git_commits_info.txt", sep=";")
-    number_commits = len(commits_dates["date"])
-    steps = st.word_count / number_commits
-    list_word_lengths = [steps * i for i in range(number_commits)]
-    fig, ax_text, ax_header, ax_stats, ax_wc = create_frame()
-    ax_stats.plot(commits_dates["date"], list_word_lengths[::-1], marker="o")
-    plt.show()
 
 
 # test_stats()
 # test_wordcloud()
-# test_stats_graph()
+test_stats_graph2()
