@@ -4,11 +4,15 @@
 
 import git
 from config import thesis_path
+import pandas as pd
+from text_stats import Stats, open_file
+import glob
+import pathlib
 
-repo = git.Repo(thesis_path)
+# TODO: Add option to move this to another folder
 
 
-def create_commit_list() -> list:
+def create_commit_list(repo: git.Repo) -> list:
     """Goes through the commits and generates an external text file that has the
     sha, the commit message and the unix date.
 
@@ -18,10 +22,10 @@ def create_commit_list() -> list:
     commits = []
     with open("git_commits_info.txt", "w", encoding="utf8") as fhand:
         # Write header to file
-        fhand.write("sha;message;date\n")
+        fhand.write("sha;message;timestamp\n")
         for commit in repo.iter_commits():
             sha = commit.hexsha
-            message = commit.message
+            message = commit.message.rstrip()
             # Needs to be converted afterwards to a datetime object. To store,
             # will use the "pure" number.
             date = commit.committed_date
@@ -30,7 +34,7 @@ def create_commit_list() -> list:
     return commits
 
 
-def load_commit_list(filename: str) -> list:
+def load_commit_list(filename: str = "git_commits_info.txt") -> list:
     """Goes through the file created in create_commit_list and generates a list
     of dicts containing information about the commits
 
@@ -41,10 +45,17 @@ def load_commit_list(filename: str) -> list:
     """
     lines = open(filename, "r", encoding="utf8").read()
     commits = []
-    # TODO: Does not consider if the commit messages have newlines. Fix.
     for i, line in enumerate(lines.split("\n")):
         if i == 0:  # Skip the header
+            continue
+        if len(line) == 0:
             continue
         sha, message, time = line.split(";")
         commits.append({"sha": sha, "message": message, "time": time})
     return commits
+
+
+def test_repo_info():
+    repo = git.Repo(thesis_path)
+    create_commit_list(repo)
+    print(load_commit_list("git_commits_info.txt"))
