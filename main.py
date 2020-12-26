@@ -95,8 +95,14 @@ def compile_pdf_from_sha(
     makeindex_command = ["makeindex", "main.tex"]
     bibtex_command = ["bibtex", "main"]
 
+    # Check if there's already a pdf file there
+    if os.path.isfile(f"./pdfs/{sha}.pdf"):
+        print(f"Already compiled {sha}")
+        return
+
     os.chdir("../Tese")
 
+    # I didn't see any case of includeonlys
     if fix_includeonly:
         maintex = open("main.tex", "r").read()
         # Very crude
@@ -104,28 +110,45 @@ def compile_pdf_from_sha(
         with open("main.tex", "w") as fhand:
             fhand.write(maintex)
 
+    # One specific commit had a problem, where there was a table in the file
+    # "aditivos.tex" where the first cell title was [NaSal], and the previous
+    # command was \toprule. Even with the newline between them, xelatex was
+    # considering it to be \toprule[NaSal], and accusing NaSal of not being a
+    # number, freezing compilation.
+    if sha.startswith("df17dbd"):
+        problematic_text = open("aditivos.tex", "r").read()
+        import re
+
+        problematic_text = re.sub(
+            r"\\toprule([\s%]+?)\[NaSal\]",
+            r"\\toprule\1NaSal",
+            problematic_text,
+        )
+        with open("aditivos.tex", "w") as fhand:
+            fhand.write(problematic_text)
+
     print("\tCompilation 1", flush=True)
-    proc = subprocess.run(xelatex_command, capture_output=True)
+    proc = subprocess.run(xelatex_command, capture_output=False)
     # write_logfiles(proc, log, err)
 
     print("\tIndex", flush=True)
-    proc = subprocess.run(makeindex_command, capture_output=True)
+    proc = subprocess.run(makeindex_command, capture_output=False)
     # write_logfiles(proc, log, err)
 
     print("\tReferences", flush=True)
-    proc = subprocess.run(bibtex_command, capture_output=True)
+    proc = subprocess.run(bibtex_command, capture_output=False)
     # write_logfiles(proc, log, err)
 
     print("\tCompilation 2", flush=True)
-    proc = subprocess.run(xelatex_command, capture_output=True)
+    proc = subprocess.run(xelatex_command, capture_output=False)
     # write_logfiles(proc, log, err)
 
     print("\tCompilation 3", flush=True)
-    proc = subprocess.run(xelatex_command, capture_output=True)
+    proc = subprocess.run(xelatex_command, capture_output=False)
     # write_logfiles(proc, log, err)
 
     print("\tCompilation 4", flush=True)
-    proc = subprocess.run(xelatex_command, capture_output=True)
+    proc = subprocess.run(xelatex_command, capture_output=False)
     # write_logfiles(proc, log, err)
 
     print(flush=True)
@@ -168,8 +191,34 @@ def test_compile_all_pdfs():
         compile_pdf_from_sha(commit["sha"], "./pdfs", repo, "../Tese")
 
 
+def test_all_includeonlys():
+    from repo_info import load_commit_list
+
+    commits = load_commit_list()
+    repo = git.Repo(thesis_path)
+    for i, commit in enumerate(commits):
+        print(
+            f'Problem in {commit["sha"]}? {test_includeonly(commit["sha"], repo)}'
+        )
+
+
+def test_includeonly(sha: str, repo: git.Repo) -> str:
+    repo.git.checkout(sha, force=True)
+    maintex = open("../Tese/main.tex", "r").readlines()
+    for line in maintex:
+        if "includeonly" in line:
+            return line
+    # for line in maintex:
+    #     if line.strip().startswith(r"\includeonly"):
+    #         return "\n" + line
+    # else:
+    #     return False
+    # maintex.replace("includeonly", "")
+
+
 # test_create_all_stats()
-test_compile_all_pdfs()
+# test_compile_all_pdfs()
+test_all_includeonlys()
 
 # if __name__ == "__main__":
 #     main()
