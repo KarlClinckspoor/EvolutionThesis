@@ -3,7 +3,7 @@
 # start date: 2020-12-08
 # last update: 2020-12-08
 
-from config import thesis_path, stats_basepath
+from config import thesis_path, stats_basepath, compiled_pdfs_path
 from repo_info import create_commit_list
 from text_stats import Stats
 import pathlib
@@ -11,7 +11,7 @@ import git
 import glob
 import os
 import shutil
-from typing import List
+from typing import List, Tuple
 import subprocess
 
 
@@ -75,40 +75,68 @@ def create_stats_from_sha(
 
 def compile_pdf_from_sha(
     sha: str,
-    output_path: str,
     repo: git.Repo,
-    texfile_location: str,
+    output_path: str = compiled_pdfs_path,
+    texfile_location: str = thesis_path,
+    mainfile_name: str = "main.tex",
     fix_includeonly: bool = True,
+    verbose: bool = False,
+    overwrite_pdf: bool = False,
 ) -> None:
-    # TODO: Make commands more generic
+    """Compiles the pdf using xelatex, targetting the file in `mainfile_name`,
+    then copies the pdf to the path specified in `output_path`. Requires a
+    git.Repo instance pointing to the repository. Can remove lines that contain
+    "includeonly", so it compiles the full text. Verbose can be used to show, or
+    not, the compilation output.
+
+        Args:
+            sha (str): the sha hash that git can use to checkout
+            output_path (str): where the compiled pdf will be stored
+            repo (git.Repo): the git repo instance
+            texfile_location (str): the location of the .tex files
+            mainfile_name (str): the name of the main file, typically main.tex
+            fix_includeonly (bool, optional): Removes any lines that contain
+                "\includeonly". Defaults to True.
+            verbose (bool, optional): If set to true, shows all the output of
+                the programs used. Defaults to False.
+            overwrite_pdf (bool): Overwrites any already compiled pdf
+    """
     starting_sha = repo.commit().hexsha
     repo.git.checkout(sha, force=True)
-    # It's easier to change dirs because of the latex commands, copy the pdf,
-    # then change back
-    xelatex_command = [
+    xelatex_command = (
         "xelatex",
         "-shell-escape",
-        # "output-directory='../FilmeTese/pdfs'",
         "-interaction=nonstopmode",
-        "main.tex",
-    ]
-    makeindex_command = ["makeindex", "main.tex"]
-    bibtex_command = ["bibtex", "main"]
+        mainfile_name,
+    )
+    makeindex_command = ("makeindex", mainfile_name)
+    bibtex_command = ("bibtex", mainfile_name[:-4])
 
+    # Create folder if not exists
+    os.makedirs(output_path, exist_ok=True)
     # Check if there's already a pdf file there
-    if os.path.isfile(f"./pdfs/{sha}.pdf"):
-        print(f"Already compiled {sha}")
+    if (not overwrite_pdf) and os.path.isfile(
+        pathlib.Path(output_path) / (sha + ".pdf")
+    ):
+        print(f"Already compiled {sha}, skipping")
         return
 
-    os.chdir("../Tese")
+    # It's easier to change dirs because of the latex commands, copy the pdf,
+    # then change back
+    original_dir = os.getcwd()
+    os.chdir(texfile_location)
 
-    # I didn't see any case of includeonlys
     if fix_includeonly:
-        maintex = open("main.tex", "r").read()
+        maintex = open(mainfile_name, "r").readlines()
         # Very crude
-        maintex.replace("includeonly", "")
-        with open("main.tex", "w") as fhand:
-            fhand.write(maintex)
+        for i, line in enumerate(maintex):
+            if "includeonly" in line:
+                # maintex.replace("includeonly", "")
+                maintex[i] = ""
+        with open(mainfile_name, "w") as fhand:
+            fhand.write(
+                "".join(maintex)
+            )  # TODO: not "\n".join... Because written in Windows?
 
     # One specific commit had a problem, where there was a table in the file
     # "aditivos.tex" where the first cell title was [NaSal], and the previous
@@ -128,36 +156,26 @@ def compile_pdf_from_sha(
             fhand.write(problematic_text)
 
     print("\tCompilation 1", flush=True)
-    proc = subprocess.run(xelatex_command, capture_output=False)
-    # write_logfiles(proc, log, err)
-
+    proc = subprocess.run(xelatex_command, capture_output=not verbose)
     print("\tIndex", flush=True)
-    proc = subprocess.run(makeindex_command, capture_output=False)
-    # write_logfiles(proc, log, err)
-
+    proc = subprocess.run(makeindex_command, capture_output=not verbose)
     print("\tReferences", flush=True)
-    proc = subprocess.run(bibtex_command, capture_output=False)
-    # write_logfiles(proc, log, err)
-
+    proc = subprocess.run(bibtex_command, capture_output=not verbose)
     print("\tCompilation 2", flush=True)
-    proc = subprocess.run(xelatex_command, capture_output=False)
-    # write_logfiles(proc, log, err)
-
+    proc = subprocess.run(xelatex_command, capture_output=not verbose)
     print("\tCompilation 3", flush=True)
-    proc = subprocess.run(xelatex_command, capture_output=False)
-    # write_logfiles(proc, log, err)
-
+    proc = subprocess.run(xelatex_command, capture_output=not verbose)
     print("\tCompilation 4", flush=True)
-    proc = subprocess.run(xelatex_command, capture_output=False)
-    # write_logfiles(proc, log, err)
-
+    proc = subprocess.run(xelatex_command, capture_output=not verbose)
     print(flush=True)
     print("\tCompilation done", flush=True)
 
-    shutil.copy("main.pdf", f"../FilmeTese/pdfs/{sha}.pdf")
+    shutil.copy(
+        mainfile_name[:-4] + ".pdf",
+        pathlib.Path(original_dir) / pathlib.Path(output_path) / f"{sha}.pdf",
+    )
 
-    os.chdir("../FilmeTese")
-    repo.git.checkout(starting_sha, force=True)
+    os.chdir(original_dir)
 
 
 def test_create_all_stats():
@@ -177,7 +195,7 @@ def test_create_all_stats():
         st.save_as_text()
 
 
-def test_compile_all_pdfs():
+def compile_all_pdfs():
     from repo_info import load_commit_list
 
     commits = load_commit_list()
@@ -188,37 +206,42 @@ def test_compile_all_pdfs():
             f'Compilation {i+1} of {len(commits)}: {commit["message"]}',
             flush=True,
         )
-        compile_pdf_from_sha(commit["sha"], "./pdfs", repo, "../Tese")
+        compile_pdf_from_sha(commit["sha"], repo, verbose=True)
 
 
-def test_all_includeonlys():
+def test_all_includeonlys() -> None:
     from repo_info import load_commit_list
 
     commits = load_commit_list()
     repo = git.Repo(thesis_path)
     for i, commit in enumerate(commits):
-        print(
-            f'Problem in {commit["sha"]}? {test_includeonly(commit["sha"], repo)}'
-        )
+        repo.git.checkout(commit["sha"], force=True)
+        maintex = open(
+            pathlib.Path(thesis_path) / pathlib.Path("main.tex"), "r"
+        ).readlines()
+        for j, line in enumerate(maintex):
+            if "includeonly" in line:
+                print(f'{commit["sha"]}, line {j}: {line.strip()}')
+                break
+        else:
+            print(
+                fr'{commit["sha"]}: Commit does not have an \includeonly statement'
+            )
 
 
-def test_includeonly(sha: str, repo: git.Repo) -> str:
-    repo.git.checkout(sha, force=True)
-    maintex = open("../Tese/main.tex", "r").readlines()
-    for line in maintex:
-        if "includeonly" in line:
-            return line
-    # for line in maintex:
-    #     if line.strip().startswith(r"\includeonly"):
-    #         return "\n" + line
-    # else:
-    #     return False
-    # maintex.replace("includeonly", "")
+# def delete_problematic_pdfs() -> None:
+#     with open("problem_includeonlys", "r") as fhand:
+#         problem_pdfs = [
+#             "./pdfs/" + line.split(" ")[2][:-1] + ".pdf" for line in fhand
+#         ]
+#         print(*problem_pdfs, sep="\n")
+#         for pdf in problem_pdfs:
+#             shutil.move(pdf, "./pdfs/bad")
 
 
 # test_create_all_stats()
-# test_compile_all_pdfs()
-test_all_includeonlys()
+compile_all_pdfs()
+# test_all_includeonlys()
 
 # if __name__ == "__main__":
 #     main()
