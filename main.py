@@ -3,7 +3,12 @@
 # start date: 2020-12-08
 # last update: 2020-12-08
 
-from config import thesis_path, stats_basepath, compiled_pdfs_path
+from config import (
+    thesis_path,
+    stats_basepath,
+    compiled_pdfs_path,
+    collated_pdfs_imgs_path,
+)
 from repo_info import create_commit_list
 from text_stats import Stats
 import pathlib
@@ -209,6 +214,28 @@ def compile_all_pdfs():
         compile_pdf_from_sha(commit["sha"], repo, verbose=True)
 
 
+def dismember_pdf_images_from_sha(sha: str, dpi: int = 300):
+    starting_dir = pathlib.Path(os.getcwd()).absolute()
+    pdf_path = (pathlib.Path(compiled_pdfs_path) / (sha + ".pdf")).absolute()
+    output_dir = (pathlib.Path(collated_pdfs_imgs_path) / sha).absolute()
+
+    os.makedirs(output_dir, exist_ok=True)
+    os.chdir(output_dir)
+    subprocess.run(
+        [
+            "pdftoppm",
+            "-png",
+            "-r",
+            str(dpi),
+            "-hide-annotations",
+            pdf_path.absolute(),
+            "pdf",
+        ],
+        capture_output=False,
+    )
+    os.chdir(starting_dir)
+
+
 def test_all_includeonlys() -> None:
     from repo_info import load_commit_list
 
@@ -229,6 +256,14 @@ def test_all_includeonlys() -> None:
             )
 
 
+def test_all_img_from_path() -> None:
+    pdf_files = glob.glob(compiled_pdfs_path + "/*pdf")
+    for i, file in enumerate(pdf_files):
+        print(f"({i+1}:{len(pdf_files)}) Dismembering", file)
+        pdf_path = pathlib.Path(file)
+        dismember_pdf_images_from_sha(pdf_path.stem, dpi=50)
+
+
 # def delete_problematic_pdfs() -> None:
 #     with open("problem_includeonlys", "r") as fhand:
 #         problem_pdfs = [
@@ -240,8 +275,10 @@ def test_all_includeonlys() -> None:
 
 
 # test_create_all_stats()
-compile_all_pdfs()
+# compile_all_pdfs()
 # test_all_includeonlys()
+test_all_img_from_path()
+
 
 # if __name__ == "__main__":
 #     main()
