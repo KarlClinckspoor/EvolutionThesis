@@ -8,6 +8,7 @@ from config import (
     stats_basepath,
     compiled_pdfs_path,
     pdf_pages_path,
+    collated_pdfs_path,
 )
 from repo_info import create_commit_list
 from text_stats import Stats
@@ -303,6 +304,11 @@ def test_collate_all() -> None:
             end="",
             flush=True,
         )
+        if (
+            pathlib.Path(collated_pdfs_path) / (commit["sha"] + ".png")
+        ).is_file():
+            print(" Already processed, skipping.", flush=True)
+            continue
         # Hard coded because these seem to be the better size for my case
         collate_pdf_by_sha(commit["sha"], rows=15, cols=25)
         print(" Done.", flush=True)
