@@ -7,7 +7,7 @@ from config import (
     thesis_path,
     stats_basepath,
     compiled_pdfs_path,
-    collated_pdfs_imgs_path,
+    pdf_pages_path,
 )
 from repo_info import create_commit_list
 from text_stats import Stats
@@ -20,7 +20,7 @@ from typing import List, Tuple
 import subprocess
 
 
-def main():
+def main():  # TODO
     # Step 1: Extract information from the directory
     print(thesis_path)
     print("Creating commit list", end="")
@@ -34,6 +34,20 @@ def create_stats_from_sha(
     filename_pattern: str = "*.tex",
     merge: bool = True,
 ) -> List[Stats]:
+    """Creates a stats object and computes its values starting from a commit
+    hash and a git.Repo object pointing to the repo.
+
+        Args:
+            sha (str): The commit sha hash
+            repo (git.Repo): The target repo
+            filename_pattern (str, optional): The pattern used to get the
+            appropriate files. Defaults to "*.tex".
+            merge (bool, optional): Whether or not to compute the stats for all
+            the files as one, or to compute them individually. Defaults to True.
+
+        Returns:
+            List[Stats]: A list containing the invididual Stats for each file considered. If `merge==True`, then its a single item list.
+    """
     from text_stats import open_file
 
     starting_sha = repo.commit().hexsha
@@ -183,7 +197,7 @@ def compile_pdf_from_sha(
     os.chdir(original_dir)
 
 
-def test_create_all_stats():
+def test_create_all_stats():  # Tests creating all stats for all commits
     from repo_info import load_commit_list
 
     commits = load_commit_list()
@@ -200,7 +214,8 @@ def test_create_all_stats():
         st.save_as_text()
 
 
-def compile_all_pdfs():
+def compile_all_pdfs() -> None:
+    """Compiles all pdfs possible."""
     from repo_info import load_commit_list
 
     commits = load_commit_list()
@@ -214,10 +229,18 @@ def compile_all_pdfs():
         compile_pdf_from_sha(commit["sha"], repo, verbose=True)
 
 
-def dismember_pdf_images_from_sha(sha: str, dpi: int = 300):
+# TODO: consider moving this and other image-related functions to another file
+def dismember_pdf_images_from_sha(sha: str, dpi: int = 50) -> None:
+    """Creates images for each page of a compiled pdf, starting from its sha.
+
+    Args:
+        sha (str): SHA hash of the commit
+        dpi (int, optional): the default dpi used for the images. Defaults to
+        50. It's not necessary to be very large.
+    """
     starting_dir = pathlib.Path(os.getcwd()).absolute()
     pdf_path = (pathlib.Path(compiled_pdfs_path) / (sha + ".pdf")).absolute()
-    output_dir = (pathlib.Path(collated_pdfs_imgs_path) / sha).absolute()
+    output_dir = (pathlib.Path(pdf_pages_path) / sha).absolute()
 
     os.makedirs(output_dir, exist_ok=True)
     os.chdir(output_dir)
@@ -237,6 +260,9 @@ def dismember_pdf_images_from_sha(sha: str, dpi: int = 300):
 
 
 def test_all_includeonlys() -> None:
+    """Tests commit by commit if there's a line containing \\includeonly. This
+    needs to be removed to better represent the evolution of the pages
+    """
     from repo_info import load_commit_list
 
     commits = load_commit_list()
@@ -257,11 +283,29 @@ def test_all_includeonlys() -> None:
 
 
 def test_all_img_from_path() -> None:
+    """Tests creating images for all pdfs"""
+    # TODO: change this to pathlib.Path.glob
     pdf_files = glob.glob(compiled_pdfs_path + "/*pdf")
     for i, file in enumerate(pdf_files):
         print(f"({i+1}:{len(pdf_files)}) Dismembering", file)
         pdf_path = pathlib.Path(file)
         dismember_pdf_images_from_sha(pdf_path.stem, dpi=50)
+
+
+def test_collate_all() -> None:
+    from repo_info import load_commit_list
+    from collate_pages import collate_pdf_by_sha
+
+    commits = load_commit_list()
+    for i, commit in enumerate(commits):
+        print(
+            f"({i+1}/{len(commits)}): Merging {commit['sha']}...",
+            end="",
+            flush=True,
+        )
+        # Hard coded because these seem to be the better size for my case
+        collate_pdf_by_sha(commit["sha"], rows=15, cols=25)
+        print(" Done.", flush=True)
 
 
 # def delete_problematic_pdfs() -> None:
@@ -277,7 +321,8 @@ def test_all_img_from_path() -> None:
 # test_create_all_stats()
 # compile_all_pdfs()
 # test_all_includeonlys()
-test_all_img_from_path()
+# test_all_img_from_path()
+test_collate_all()
 
 
 # if __name__ == "__main__":
