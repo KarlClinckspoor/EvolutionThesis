@@ -216,6 +216,16 @@ def determine_ideal_shape(sha: str) -> Tuple[int, int]:
 
 
 def find_maximum_number_pages(save: bool = True) -> int:
+    """Find the maximum number of pages, so that one can better decide the
+    number of rows and columns used.
+
+        Args:
+            save (bool, optional): Saves the results in a file called
+            `number_of_pages.txt`. Defaults to True.
+
+        Returns:
+            int: The maximum number of pages
+    """
     folders = [i for i in Path(pdf_pages_path).glob("*") if i.is_dir()]
     number_of_images = {
         folder.stem: len(list(folder.glob("*png"))) for folder in folders
@@ -230,4 +240,4 @@ def find_maximum_number_pages(save: bool = True) -> int:
 
 # collate_pdf_by_sha("e7f3e0e57a750ca29a4e2857850587a2f07260aa", 15, 25)
 # print(determine_ideal_shape("e7f3e0e57a750ca29a4e2857850587a2f07260aa"))
-print(find_maximum_number_pages(save=True))
+# print(find_maximum_number_pages(save=True))
