@@ -1,5 +1,6 @@
 import matplotlib
 import matplotlib.pyplot as plt
+import imageio
 from wordcloud import WordCloud
 from config import *
 from collections import Counter
@@ -9,12 +10,16 @@ from text_stats import (
     create_stats_all_tex_files,
     fix_specific_things,
 )
-import pathlib
+from pathlib import Path
 import glob
 import pickle
 import pandas as pd
 import datetime
 from typing import Union, List
+
+import PIL
+
+PIL.Image.MAX_IMAGE_PIXELS = 933120000
 
 debug = False
 matplotlib.rcParams["text.usetex"] = True
@@ -51,7 +56,36 @@ def create_wordcloud(
     return cloud
 
 
-def load_joined_pdf_image(imagepath: pathlib.Path):
+def scale_wordcloud(
+    target_cloud: WordCloud,
+    reference_cloud: WordCloud,
+    target_wordcount: int,
+    reference_wordcount: int,
+) -> WordCloud:
+    ref_cloud_fs = {i[0][0]: i[1] for i in reference_cloud.layout_}
+    ref_cloud_unknown = {i[0][0]: i[0][1] for i in reference_cloud.layout_}
+    ref_cloud_pos = {i[0][0]: i[2] for i in reference_cloud.layout_}
+    ref_cloud_or = {i[0][0]: i[3] for i in reference_cloud.layout_}
+    ref_cloud_col = {i[0][0]: i[4] for i in reference_cloud.layout_}
+    # layout_: list of (string, font size, position, orientation, color)
+    for i, item in enumerate(target_cloud.layout_):
+        word = item[0][0]
+        unknown = item[0][1]
+        # fs = ref_cloud_fs.get(word, 0)
+        # scaled_fs = item[1] * target_wordcount / reference_wordcount
+        scaled_fs = (
+            ref_cloud_fs.get(word, 0) * target_wordcount / reference_wordcount
+        )
+        unk = ref_cloud_unknown.get(word, 0)
+        pos = ref_cloud_pos.get(word, (0, 0))
+        or_ = ref_cloud_or.get(word, 0)
+        col = ref_cloud_col.get(word, 0)
+        newitem = ((word, unk), scaled_fs, pos, or_, col)
+        target_cloud.layout_[i] = newitem
+    return target_cloud
+
+
+def load_joined_pdf_image(imagepath: Path):
     pass
 
 
@@ -359,32 +393,23 @@ def add_stats_graph(
 
     ax_stats.plot(list_deltas_days, list_word_counts, marker="o", label="Words")
     ax_stats.plot(
-        list_deltas_days,
-        list_unique_word_counts,
-        marker="o",
-        label="UWords",
+        list_deltas_days, list_unique_word_counts, marker="o", label="UWords",
     )
     ax_stats.plot(list_deltas_days, list_fig_count, marker="o", label="Figs")
     ax_stats.plot(list_deltas_days, list_eq_count, marker="o", label="Eqs")
     ax_stats.plot(list_deltas_days, list_list_count, marker="o", label="List")
     ax_stats.plot(
-        list_deltas_days,
-        list_latex_comm_count,
-        marker="o",
-        label="LComm",
+        list_deltas_days, list_latex_comm_count, marker="o", label="LComm",
     )
     ax_stats.plot(
-        list_deltas_days,
-        list_latex_env_count,
-        marker="o",
-        label="LEnv",
+        list_deltas_days, list_latex_env_count, marker="o", label="LEnv",
     )
     ax_stats.legend(fontsize=6)
     ax_stats.set(xlabel="Days", ylabel="count")
 
 
 def test_stats():
-    path = pathlib.Path(thesis_path)
+    path = Path(thesis_path)
     tex_files = glob.glob(str(path / "*.tex"))
     list_of_Stats = []
     full_text = []
@@ -445,14 +470,39 @@ def test_stats_graph2():
             st = pickle.load(fhand)
             list_of_Stats.append(st)
     list_of_Stats.sort(key=lambda x: x.date)
+
+    reference_cloud = create_wordcloud(
+        list_of_Stats[-1].reduced_word_Counter, width=580, height=300
+    )
+    # reference_wc = list_of_Stats[-1].word_count
+    reference_wc = sum(list_of_Stats[-1].reduced_word_Counter.values())
+
     for i, stat in enumerate(list_of_Stats):
         if i + 1 > len(list_of_Stats) - 3:
             continue
+        stat = fix_specific_things(stat)
         fig, ax_text, ax_header, ax_stats, ax_wc = create_frame()
         add_stats_graph(ax_stats, list_of_Stats[: i + 1])
         ax_stats.set_yscale("log")
-        fig.savefig(f"./figs/{i}.jpg", dpi=100)
+        sha = stat.commit_hash
+        # fig_text = imageio.imread(Path(collated_pdfs_path) / (sha + ".jpeg"))
+        # ax_text.imshow(
+        #     fig_text, interpolation="hanning", aspect="equal", origin="upper"
+        # )
+
+        cloud = create_wordcloud(
+            stat.reduced_word_Counter, width=580, height=300
+        )
+        target_wc = sum(stat.reduced_word_Counter.values())
+        # target_wc = stat.word_count
+        scaled_cl = scale_wordcloud(
+            cloud, reference_cloud, target_wc, reference_wc
+        )
+
+        wc_im = add_wordcloud(ax_wc, scaled_cl)
+        fig.savefig(f"./figs/{i:03d}.png", dpi=100)
         plt.close(fig)
+        print(f"Processed {i:03d}", flush=True)
 
 
 def test_header():
