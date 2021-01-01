@@ -13,9 +13,11 @@ from text_stats import (
 from pathlib import Path
 import glob
 import pickle
-import pandas as pd
+
+# import pandas as pd
 import datetime
 from typing import Union, List
+import numpy as np
 
 import PIL
 
@@ -56,11 +58,14 @@ def create_wordcloud(
     return cloud
 
 
+# TODO: Scale the wordcloud using a less strict method. Maybe use a sigmoidal?
+# Logistic?
 def scale_wordcloud(
     target_cloud: WordCloud,
     reference_cloud: WordCloud,
     target_wordcount: int,
     reference_wordcount: int,
+    scale_type: str = "log",
 ) -> WordCloud:
     ref_cloud_fs = {i[0][0]: i[1] for i in reference_cloud.layout_}
     ref_cloud_unknown = {i[0][0]: i[0][1] for i in reference_cloud.layout_}
@@ -73,9 +78,42 @@ def scale_wordcloud(
         unknown = item[0][1]
         # fs = ref_cloud_fs.get(word, 0)
         # scaled_fs = item[1] * target_wordcount / reference_wordcount
-        scaled_fs = (
-            ref_cloud_fs.get(word, 0) * target_wordcount / reference_wordcount
-        )
+        #
+        if scale_type == "linear":
+            scaled_fs = (
+                ref_cloud_fs.get(word, 1)
+                * target_wordcount
+                / reference_wordcount
+            )
+        if scale_type == "log":
+            scaled_fs = (
+                ref_cloud_fs.get(word, 1)
+                * np.log10(target_wordcount)
+                / np.log10(reference_wordcount)
+            )
+        elif scale_type == "logistic":
+            pass
+            # f(x) = L / (1 + e^(-k(x-x0)))
+            # https://en.wikipedia.org/wiki/Logistic_function
+            def logistic(x, L, k, x0):
+                return L / (1 + 2.71 ** (-k * (x - x0)))
+
+            # Maximum value will be reference_wordcount * reference_fontsize
+            # Current value will be target_wordcount * word_fontsize
+            # L will be maximum value
+            # k will be found empirically
+            # x0 will be the mean of the values found?
+            # max_val = reference_wordcount * max(ref_cloud_fs.values())
+            # curr_val = target_wordcount * item[1]
+            # min_val = min(i[1] for i in target_cloud.layout_) * target_wordcount
+            # k = 10
+            # # x0 = (max_val + min_val) / (target_wordcount + reference_wordcount)
+            # x0 = (
+            #     max(ref_cloud_fs.values())
+            #     + min(i[1] for i in target_cloud.layout_)
+            # ) / (2)
+            # scaled_fs = logistic(item[1], max_val, k, x0)
+
         unk = ref_cloud_unknown.get(word, 0)
         pos = ref_cloud_pos.get(word, (0, 0))
         or_ = ref_cloud_or.get(word, 0)
@@ -393,16 +431,25 @@ def add_stats_graph(
 
     ax_stats.plot(list_deltas_days, list_word_counts, marker="o", label="Words")
     ax_stats.plot(
-        list_deltas_days, list_unique_word_counts, marker="o", label="UWords",
+        list_deltas_days,
+        list_unique_word_counts,
+        marker="o",
+        label="UWords",
     )
     ax_stats.plot(list_deltas_days, list_fig_count, marker="o", label="Figs")
     ax_stats.plot(list_deltas_days, list_eq_count, marker="o", label="Eqs")
     ax_stats.plot(list_deltas_days, list_list_count, marker="o", label="List")
     ax_stats.plot(
-        list_deltas_days, list_latex_comm_count, marker="o", label="LComm",
+        list_deltas_days,
+        list_latex_comm_count,
+        marker="o",
+        label="LComm",
     )
     ax_stats.plot(
-        list_deltas_days, list_latex_env_count, marker="o", label="LEnv",
+        list_deltas_days,
+        list_latex_env_count,
+        marker="o",
+        label="LEnv",
     )
     ax_stats.legend(fontsize=6)
     ax_stats.set(xlabel="Days", ylabel="count")
@@ -471,6 +518,11 @@ def test_stats_graph2():
             list_of_Stats.append(st)
     list_of_Stats.sort(key=lambda x: x.date)
 
+    # TODO: Create 2 reference wordclouds. First, with only a few select words
+    # (20-30 ish), then another one with ~100-200. Position the one with 20-30
+    # using the ~100-200. The remaining words will probably appear in the
+    # initial wordclouds, so they can appear and disappear in "free" spaces as
+    # the figure evolves.
     reference_cloud = create_wordcloud(
         list_of_Stats[-1].reduced_word_Counter, width=580, height=300
     )
