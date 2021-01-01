@@ -238,6 +238,35 @@ def find_maximum_number_pages(save: bool = True) -> int:
     return max(number_of_images.values())
 
 
+def compress_image(sha: str, quality: float = 10) -> None:
+    """Uses PIL to compress an image with quality `quality` in jpeg format.
+
+    Args:
+        sha (str): The commit sha
+        image (np.ndarray): the image before saving
+        quality (float, optional): The quality used to compress, higher is
+        better quality. Defaults to 10.
+    """
+    from PIL import Image
+
+    out = Image.open(Path(collated_pdfs_path) / (sha + ".png"))
+    out.save(
+        Path(collated_pdfs_path) / f"{sha}.jpeg",
+        quality=quality,
+        optimize=True,
+    )
+
+
+def compress_all_images() -> None:
+    uncompressed = Path(collated_pdfs_path).glob("*png")
+    for file in uncompressed:
+        sha = file.stem
+        print("Compressing", sha, "...", end="", flush=True)
+        compress_image(sha, quality=10)
+        print(" Done", flush=True)
+
+
 # collate_pdf_by_sha("e7f3e0e57a750ca29a4e2857850587a2f07260aa", 15, 25)
 # print(determine_ideal_shape("e7f3e0e57a750ca29a4e2857850587a2f07260aa"))
 # print(find_maximum_number_pages(save=True))
+# compress_all_images()
