@@ -16,7 +16,7 @@ import pickle
 
 # import pandas as pd
 import datetime
-from typing import Union, List
+from typing import Union, List, Tuple
 import numpy as np
 
 import PIL
@@ -58,6 +58,50 @@ def create_wordcloud(
     return cloud
 
 
+def transfer_stats_between_wc(
+    reference_cloud: WordCloud,
+    target_cloud: WordCloud,
+    transfer_fontsize: bool = False,
+    transfer_pos: bool = False,
+    transfer_orientation: bool = False,
+    transfer_color: bool = False,
+    transfer_unk: bool = False,
+) -> WordCloud:
+    """Transfer the stats between two wordclouds, for example, the text positions. If a word is not
+    present in the reference cloud, then its corresponding value in the target cloud is zero.
+
+        Args:
+            reference_cloud (WordCloud): The wordcloud that will supply the
+            properties
+            target_cloud (WordCloud): The wordcloud that will be changed
+            transfer_fontsize (bool): Choose to transfer the font size. Defaults to False.
+            transfer_pos (bool): Choose to transfer the position. Defaults to False.
+            transfer_orientation (bool): Choose to transfer the orientation. Defaults to False.
+            transfer_color (bool): Choose to transfer the color. Defaults to False.
+            transfer_unk (bool): Choose to transfer the unknown property. Defaults to False.
+
+        Returns:
+            WordCloud: The modified wordcloud
+    """
+    # layout_: list of (string, font size, position, orientation, color)
+    ref_cloud_fs = {i[0][0]: i[1] for i in reference_cloud.layout_}
+    ref_cloud_unknown = {i[0][0]: i[0][1] for i in reference_cloud.layout_}
+    ref_cloud_pos = {i[0][0]: i[2] for i in reference_cloud.layout_}
+    ref_cloud_or = {i[0][0]: i[3] for i in reference_cloud.layout_}
+    ref_cloud_col = {i[0][0]: i[4] for i in reference_cloud.layout_}
+    # layout_: list of (string, font size, position, orientation, color)
+    for i, item in enumerate(target_cloud.layout_):
+        word = item[0][0]
+        fs = ref_cloud_fs.get(word, 0) if transfer_fontsize else item[1]
+        unk = ref_cloud_unknown.get(word, 0) if transfer_unk else item[0][1]
+        pos = ref_cloud_pos.get(word, (0, 0)) if transfer_pos else item[2]
+        or_ = ref_cloud_or.get(word, 0) if transfer_orientation else item[3]
+        col = ref_cloud_col.get(word, 0) if transfer_color else item[4]
+        newitem = ((word, unk), fs, pos, or_, col)
+        target_cloud.layout_[i] = newitem
+    return target_cloud
+
+
 # TODO: Scale the wordcloud using a less strict method. Maybe use a sigmoidal?
 # Logistic?
 def scale_wordcloud(
@@ -67,18 +111,33 @@ def scale_wordcloud(
     reference_wordcount: int,
     scale_type: str = "log",
 ) -> WordCloud:
+    """The word size of each word in a wordcloud can be adjusted manually.
+    Unfortunately, since the words are located by a corner (upper left?), they won't
+    be centered as you adjust the sizes. This can be used to evaluate the evolution
+    of the word sizes as the document grows.
+
+        Args:
+            target_cloud (WordCloud): The wordcloud that will be changed
+            reference_cloud (WordCloud): The wordcloud that will be taken as the 100% size reference.
+            target_wordcount (int): The sum of all word counts used to create the wordcloud that will be changed (<100%)
+            reference_wordcount (int): The sum of all word counts used to create the reference (100%)
+            scale_type (str, optional): The type of scaling. It can be `linear`, where the percentage change of the word size is the ratio between the reference and target wordclouds. It can be `log`, where the ratio is the ratio of the log10 of each wordcount. Defaults to "log".
+
+        Returns:
+            WordCloud: The size adjusted wordcloud
+    """
+    # Transfer other properties, then scale the font size
+    target_cloud = transfer_stats_between_wc(
+        reference_cloud,
+        target_cloud,
+        transfer_pos=True,
+        transfer_orientation=True,
+        transfer_unk=True,
+        transfer_color=True,
+    )
     ref_cloud_fs = {i[0][0]: i[1] for i in reference_cloud.layout_}
-    ref_cloud_unknown = {i[0][0]: i[0][1] for i in reference_cloud.layout_}
-    ref_cloud_pos = {i[0][0]: i[2] for i in reference_cloud.layout_}
-    ref_cloud_or = {i[0][0]: i[3] for i in reference_cloud.layout_}
-    ref_cloud_col = {i[0][0]: i[4] for i in reference_cloud.layout_}
-    # layout_: list of (string, font size, position, orientation, color)
     for i, item in enumerate(target_cloud.layout_):
         word = item[0][0]
-        unknown = item[0][1]
-        # fs = ref_cloud_fs.get(word, 0)
-        # scaled_fs = item[1] * target_wordcount / reference_wordcount
-        #
         if scale_type == "linear":
             scaled_fs = (
                 ref_cloud_fs.get(word, 1)
@@ -92,6 +151,7 @@ def scale_wordcloud(
                 / np.log10(reference_wordcount)
             )
         elif scale_type == "logistic":
+            assert False
             pass
             # f(x) = L / (1 + e^(-k(x-x0)))
             # https://en.wikipedia.org/wiki/Logistic_function
@@ -114,17 +174,27 @@ def scale_wordcloud(
             # ) / (2)
             # scaled_fs = logistic(item[1], max_val, k, x0)
 
-        unk = ref_cloud_unknown.get(word, 0)
-        pos = ref_cloud_pos.get(word, (0, 0))
-        or_ = ref_cloud_or.get(word, 0)
-        col = ref_cloud_col.get(word, 0)
-        newitem = ((word, unk), scaled_fs, pos, or_, col)
+        newitem = list(item)
+        newitem[1] = scaled_fs
+        # newitem = tuple(newitem)
         target_cloud.layout_[i] = newitem
     return target_cloud
 
 
-def load_joined_pdf_image(imagepath: Path):
-    pass
+def load_joined_pdf_image(sha: str, extension: str = ".jpeg") -> np.ndarray:
+    """Opens the image using the provided commit sha hash and the extension. Returns a numpy array
+
+    Args:
+        sha (str): The commit sha hash
+        extension (str, optional): The extension. If ".jpeg", it's the
+        compressed version. If '.png', it's the uncompressed version. Defaults
+        to ".jpeg".
+
+    Returns:
+        np.ndarray: The image itself as a numpy array
+    """
+    fig_text = imageio.imread(Path(collated_pdfs_path) / (sha + ".jpeg"))
+    return fig_text
 
 
 def create_frame() -> matplotlib.figure.Figure:
@@ -376,8 +446,8 @@ def add_wordcloud(
     return im
 
 
-def add_colorbar(image, cax):
-    plt.colorbar(image, cax=cax)
+# def add_colorbar(image, cax):
+#     plt.colorbar(image, cax=cax)
 
 
 def add_stats_graph(
@@ -453,6 +523,54 @@ def add_stats_graph(
     )
     ax_stats.legend(fontsize=6)
     ax_stats.set(xlabel="Days", ylabel="count")
+
+
+# Messages to put on specific commit statuses. TODO: Needs to match the times, and the commits, to
+# real dates
+commit_status_messages = {
+    "5ed030fd8df9a137338766ca9cdb01d4c3c6a950": "Started writing",
+    "74d7c44f8f8bfcfa3f2623305735ac1339e498af": "Finished introduction",
+    "c6c41bac1cf01bb4b767efd0736bedc8ae8c6b04": "Finished Materials and Methods",
+    "c050c53d94caa6fa219c68bbe20f7d5fbe04ef4e": "Main text finished, wrapping up references",
+    "35254976ab9a9d54ab5a47d7e269fb101837d39a": "Sent for correction and review to friends, family and supervisor",
+    "c12761b75589a493430b713f07cd3b0e37dbbcc6": "Sent to committee",  # Todo: check emails to see if it's really here
+    "38f3c13c31bdf71d43f4878b6c614af52d34f2e9": "Approved! Revising committee suggestions",
+    "e6bf1efcfffb6301457da6d66bc7a29d6a99e29c": "Sent to institutional approval",
+    "30937f61271564f7d5b3fd59a852ee590e101115": "Final approval - Diploma incoming",
+}
+
+# TODO: Implement this
+def add_header(
+    ax_header, reference_Stat: Stats, current_Stat: Stats, status_messages: dict
+) -> None:
+    # Layout:
+    # Date:       Day X
+    # Message/Status
+    # Some stats, perhaps word count
+
+    # Calculate stuff
+    timedelta = datetime.datetime.fromtimestamp(
+        int(reference_Stat.date)
+    ) - datetime.datetime.fromtimestamp(int(current_Stat.date))
+    date = current_Stat.date
+    sha = current_Stat.commit_hash
+    message = status_messages[sha]
+
+    fontsize = 5
+    # Text positions in axis coordinates
+    line1_height = 0.95
+    line2_height = 0.85
+    line3_height = 0.75
+
+    col1_left = 0.1
+    col2_center = 0.5
+    col3_right = 0.95
+
+    date_pos = (col1_left, line1_height)
+    delta_pos = (col3_right, line1_height)
+    sha_pos = (col1_left, line2_height)
+    # ... TODO: Requires testing
+    pass
 
 
 def test_stats():
@@ -537,7 +655,7 @@ def test_stats_graph2():
         add_stats_graph(ax_stats, list_of_Stats[: i + 1])
         ax_stats.set_yscale("log")
         sha = stat.commit_hash
-        # fig_text = imageio.imread(Path(collated_pdfs_path) / (sha + ".jpeg"))
+        # fig_text = load_joined_pdf_image(sha, '.jpeg')
         # ax_text.imshow(
         #     fig_text, interpolation="hanning", aspect="equal", origin="upper"
         # )
