@@ -24,7 +24,38 @@ import PIL
 PIL.Image.MAX_IMAGE_PIXELS = 933120000
 
 debug = False
-matplotlib.rcParams["text.usetex"] = True
+
+plt.rcParams.update(
+    {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.serif": ["Latin Modern Roman"],
+    }
+)
+
+
+# Messages to put on specific commit statuses. TODO: Needs to match the times, and the commits, to
+# real dates
+commit_status_messages = {
+    "5ed030fd8df9a137338766ca9cdb01d4c3c6a950": "Started writing",
+    "74d7c44f8f8bfcfa3f2623305735ac1339e498af": "Finished introduction",
+    "c6c41bac1cf01bb4b767efd0736bedc8ae8c6b04": "Finished Materials and Methods",
+    "c050c53d94caa6fa219c68bbe20f7d5fbe04ef4e": "Main text finished, wrapping up references",
+    "35254976ab9a9d54ab5a47d7e269fb101837d39a": "Sent for correction and review to friends, family and supervisor",
+    "c12761b75589a493430b713f07cd3b0e37dbbcc6": "Sent to committee",  # Todo: check emails to see if it's really here
+    "38f3c13c31bdf71d43f4878b6c614af52d34f2e9": "Approved! Revising committee suggestions",
+    "e6bf1efcfffb6301457da6d66bc7a29d6a99e29c": "Sent to institutional approval",
+    "30937f61271564f7d5b3fd59a852ee590e101115": "Final approval - Diploma incoming",
+}
+
+color_code_axes = dict(
+    wc="C0",
+    uwc="C1",
+    fig="C2",
+    tab="C3",
+    eq="C4",
+    list="C5",
+)
 
 
 def create_wordcloud(
@@ -496,52 +527,71 @@ def add_stats_graph(
         list_fig_count.append(stat.figure_count)
         list_eq_count.append(stat.equation_counts)
         list_list_count.append(stat.listing_count)
+        list_tab_count.append(stat.table_count)
         list_latex_comm_count.append(sum(stat.command_Counter.values()))
         list_latex_env_count.append(sum(stat.env_Counter.values()))
 
-    ax_stats.plot(list_deltas_days, list_word_counts, marker="o", label="Words")
+    ax_stats.plot(
+        list_deltas_days,
+        list_word_counts,
+        marker="o",
+        label="Words",
+        c=color_code_axes["wc"],
+    )
     ax_stats.plot(
         list_deltas_days,
         list_unique_word_counts,
         marker="o",
         label="UWords",
-    )
-    ax_stats.plot(list_deltas_days, list_fig_count, marker="o", label="Figs")
-    ax_stats.plot(list_deltas_days, list_eq_count, marker="o", label="Eqs")
-    ax_stats.plot(list_deltas_days, list_list_count, marker="o", label="List")
-    ax_stats.plot(
-        list_deltas_days,
-        list_latex_comm_count,
-        marker="o",
-        label="LComm",
+        c=color_code_axes["uwc"],
     )
     ax_stats.plot(
         list_deltas_days,
-        list_latex_env_count,
+        list_fig_count,
         marker="o",
-        label="LEnv",
+        label="Figs",
+        c=color_code_axes["fig"],
     )
-    ax_stats.legend(fontsize=6)
+    ax_stats.plot(
+        list_deltas_days,
+        list_eq_count,
+        marker="o",
+        label="Eqs",
+        c=color_code_axes["eq"],
+    )
+    ax_stats.plot(
+        list_deltas_days,
+        list_list_count,
+        marker="o",
+        label="List",
+        c=color_code_axes["list"],
+    )
+    ax_stats.plot(
+        list_deltas_days,
+        list_tab_count,
+        marker="o",
+        label="Table",
+        c=color_code_axes["tab"],
+    )
+    # ax_stats.plot(
+    #     list_deltas_days,
+    #     list_latex_comm_count,
+    #     marker="o",
+    #     label="LComm",
+    # )
+    # ax_stats.plot(
+    #     list_deltas_days,
+    #     list_latex_env_count,
+    #     marker="o",
+    #     label="LEnv",
+    # )
+    # ax_stats.legend(fontsize=6)
     ax_stats.set(xlabel="Days", ylabel="count")
 
 
-# Messages to put on specific commit statuses. TODO: Needs to match the times, and the commits, to
-# real dates
-commit_status_messages = {
-    "5ed030fd8df9a137338766ca9cdb01d4c3c6a950": "Started writing",
-    "74d7c44f8f8bfcfa3f2623305735ac1339e498af": "Finished introduction",
-    "c6c41bac1cf01bb4b767efd0736bedc8ae8c6b04": "Finished Materials and Methods",
-    "c050c53d94caa6fa219c68bbe20f7d5fbe04ef4e": "Main text finished, wrapping up references",
-    "35254976ab9a9d54ab5a47d7e269fb101837d39a": "Sent for correction and review to friends, family and supervisor",
-    "c12761b75589a493430b713f07cd3b0e37dbbcc6": "Sent to committee",  # Todo: check emails to see if it's really here
-    "38f3c13c31bdf71d43f4878b6c614af52d34f2e9": "Approved! Revising committee suggestions",
-    "e6bf1efcfffb6301457da6d66bc7a29d6a99e29c": "Sent to institutional approval",
-    "30937f61271564f7d5b3fd59a852ee590e101115": "Final approval - Diploma incoming",
-}
-
 # TODO: Implement this
 def add_header(
-    ax_header, reference_Stat: Stats, current_Stat: Stats, status_messages: dict
+    ax_header, reference_Stat: Stats, current_Stat: Stats, message: str
 ) -> None:
     # Layout:
     # Date:       Day X
@@ -550,27 +600,98 @@ def add_header(
 
     # Calculate stuff
     timedelta = datetime.datetime.fromtimestamp(
-        int(reference_Stat.date)
-    ) - datetime.datetime.fromtimestamp(int(current_Stat.date))
-    date = current_Stat.date
+        int(current_Stat.date)
+    ) - datetime.datetime.fromtimestamp(int(reference_Stat.date))
+    date = str(datetime.datetime.fromtimestamp(int(current_Stat.date)))
     sha = current_Stat.commit_hash
-    message = status_messages[sha]
+    pagenum = len(
+        list((Path(pdf_pages_path) / current_Stat.commit_hash).glob("*png"))
+    )
 
-    fontsize = 5
-    # Text positions in axis coordinates
-    line1_height = 0.95
-    line2_height = 0.85
-    line3_height = 0.75
+    text_options = dict(fontsize=12, usetex=True)
+    # Text positions in axis coordinates (%)
+    line1_height = 0.88
+    line2_height = 0.76
+    line3_height = 0.68
+    line4_height = 0.60
+    line5_height = 0.28
+    line6_height = 0.12
 
-    col1_left = 0.1
+    col1_left = 0.05
     col2_center = 0.5
     col3_right = 0.95
 
-    date_pos = (col1_left, line1_height)
-    delta_pos = (col3_right, line1_height)
-    sha_pos = (col1_left, line2_height)
-    # ... TODO: Requires testing
-    pass
+    # Line 1
+    sha_pos = (col2_center, line1_height)
+    # Line 2
+    date_pos = (col1_left, line2_height)
+    delta_pos = (col3_right, line2_height)
+    # Stats Line 1
+    wordcount_pos = (col1_left, line5_height)
+    unique_wordcount_pos = (col2_center, line5_height)
+    pagenum_pos = (col3_right, line5_height)
+    # Stats Line 2
+    numfigs_pos = (col1_left, line6_height)
+    numeqs_pos = (col2_center, line6_height)
+    numtabs_pos = (col3_right, line6_height)
+
+    # Message line
+    message_pos = (col2_center, line4_height)
+
+    # Line 1
+    ax_header.text(*sha_pos, sha, ha="center", **text_options)
+    # Line 2
+    ax_header.text(*date_pos, date, ha="left", **text_options)
+    ax_header.text(*delta_pos, str(timedelta), ha="right", **text_options)
+    # Stats line 1
+    ax_header.text(
+        *wordcount_pos,
+        f"Words: {current_Stat.word_count}",
+        ha="left",
+        color=color_code_axes["wc"],
+        **text_options,
+    )
+    ax_header.text(
+        *unique_wordcount_pos,
+        f"Unique words: {current_Stat.unique_word_count}",
+        ha="center",
+        color=color_code_axes["uwc"],
+        **text_options,
+    )
+    ax_header.text(
+        *pagenum_pos, f"Pages: {pagenum}", ha="right", color="k", **text_options
+    )
+    # Stats line 2
+    ax_header.text(
+        *numfigs_pos,
+        f"Figures: {current_Stat.figure_count}",
+        ha="left",
+        color=color_code_axes["fig"],
+        **text_options,
+    )
+    ax_header.text(
+        *numeqs_pos,
+        f"Equations: {current_Stat.equation_counts}",
+        ha="center",
+        color=color_code_axes["eq"],
+        **text_options,
+    )
+    ax_header.text(
+        *numtabs_pos,
+        f"Tables: {current_Stat.table_count}",
+        ha="right",
+        color=color_code_axes["tab"],
+        **text_options,
+    )
+
+    # Message line
+    import textwrap
+
+    maximum_width = 50
+    message = textwrap.fill(message, width=maximum_width)
+    ax_header.text(
+        *message_pos, message, ha="center", color="C0", va="top", **text_options
+    )
 
 
 def test_stats():
@@ -627,7 +748,7 @@ def test_stats_graph():
     plt.show()
 
 
-def test_stats_graph2():
+def test_all_graphs():
     files = glob.glob("./stats/*.pkl")
     list_of_Stats = []
     for file in files:
@@ -647,6 +768,9 @@ def test_stats_graph2():
     # reference_wc = list_of_Stats[-1].word_count
     reference_wc = sum(list_of_Stats[-1].reduced_word_Counter.values())
 
+    starting_stat = fix_specific_things(list_of_Stats[0])
+    previous_message = ""
+
     for i, stat in enumerate(list_of_Stats):
         if i + 1 > len(list_of_Stats) - 3:
             continue
@@ -655,10 +779,10 @@ def test_stats_graph2():
         add_stats_graph(ax_stats, list_of_Stats[: i + 1])
         ax_stats.set_yscale("log")
         sha = stat.commit_hash
-        # fig_text = load_joined_pdf_image(sha, '.jpeg')
-        # ax_text.imshow(
-        #     fig_text, interpolation="hanning", aspect="equal", origin="upper"
-        # )
+        fig_text = load_joined_pdf_image(sha, ".jpeg")
+        ax_text.imshow(
+            fig_text,  # interpolation="hanning", aspect="equal", origin="upper"
+        )
 
         cloud = create_wordcloud(
             stat.reduced_word_Counter, width=580, height=300
@@ -670,16 +794,110 @@ def test_stats_graph2():
         )
 
         wc_im = add_wordcloud(ax_wc, scaled_cl)
+
+        message = commit_status_messages.get(stat.commit_hash, None)
+        if not message:
+            message = previous_message
+        else:
+            previous_message = message
+
+        add_header(
+            ax_header,
+            starting_stat,
+            stat,
+            message=message,
+        )
+
         fig.savefig(f"./figs/{i:03d}.png", dpi=100)
         plt.close(fig)
         print(f"Processed {i:03d}", flush=True)
 
 
 def test_header():
-    with open("temp_stats.pkl", "rb") as fhand:
-        st = pickle.load(fhand)
+    fig_width_height_ratio = 1920 / 1080
+    fig_base_width_inch = 12
+    a4_width_mm = 210
+    a4_height_mm = 297
+
+    # Axis design
+    # Left side: mostly occupied by the axis containing the pdf
+    # Right side: contains the statistics
+    # Right side header: date, time delta, commit hash (added as ax_header)
+    # Some base stats (word count, etc) (added as ax_header)
+    # Figure containing the evolution of several stats (word counts, unique word
+    # counts, etc) (ax_stats)
+    # Figure containing the wordcloud of nonstopping words (ax_wc)
+
+    margin = 0.01
+    # Define positions
+    ax_text_left = margin
+    ax_text_bottom = margin
+    ax_text_width = 0.65
+    ax_text_height = 1 - margin
+    ax_text_rect = [ax_text_left, ax_text_bottom, ax_text_width, ax_text_height]
+
+    hor_dividing_buffer = 0.01
+    ver_dividing_buffer = 0.01
+    subfig_height = 0.3
+
+    ax_header_extra_height = -0.1
+
+    ax_header_left = ax_text_left + ax_text_width + ver_dividing_buffer
+    ax_header_bottom = 1 - margin - subfig_height - ax_header_extra_height
+    ax_header_width = 1 - ax_text_width - 3 * margin
+    ax_header_height = subfig_height + ax_header_extra_height
+    ax_header_rect = [
+        ax_header_left,
+        ax_header_bottom,
+        ax_header_width,
+        ax_header_height,
+    ]
+
+    files = glob.glob("./stats/*.pkl")
+    list_of_Stats = []
+    for file in files:
+        with open(file, "rb") as fhand:
+            st = pickle.load(fhand)
+            list_of_Stats.append(st)
+    list_of_Stats.sort(key=lambda x: x.date)
+
+    reference_Stat = list_of_Stats[0]  # First one
+
+    # previous_message = commit_status_messages[reference_Stat.commit_hash]
+    for i, stat in enumerate(list_of_Stats):
+
+        print(f"Testing header {i}", flush=True)
+        fig = plt.figure(
+            figsize=(
+                fig_base_width_inch,
+                fig_base_width_inch / fig_width_height_ratio,
+            )
+        )
+
+        ax_header = fig.add_axes(ax_header_rect)
+
+        ax_header.set_xticklabels([])
+        ax_header.set_xticks([])
+        ax_header.set_yticklabels([])
+        ax_header.set_yticks([])
+
+        message = commit_status_messages.get(stat.commit_hash, None)
+        if not message:
+            message = previous_message
+        else:
+            previous_message = message
+
+        add_header(
+            ax_header,
+            reference_Stat,
+            stat,
+            message=message,
+        )
+        plt.savefig(f"./test_headers/{i:03d}")
+        plt.close(fig)
 
 
 # test_stats()
 # test_wordcloud()
-test_stats_graph2()
+test_all_graphs()
+# test_header()
