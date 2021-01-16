@@ -669,9 +669,6 @@ def add_header(
     numeqs_pos = (col2_center, line6_height)
     numtabs_pos = (col3_right, line6_height)
 
-    # Message line
-    message_pos = (col2_center, line4_height)
-
     # Line 1
     ax_header.text(*sha_pos, sha, ha="center", **text_options)
     # Line 2
@@ -721,10 +718,21 @@ def add_header(
     # Message line
     import textwrap
 
+    # Message line
+    message_pos = (col2_center, line4_height)
+
     maximum_width = 50
     message = textwrap.fill(message, width=maximum_width)
+    numlines = len(message.split("\n"))
+    if numlines == 2:
+        message_pos = (message_pos[0], message_pos[1] + 0.07)
     ax_header.text(
-        *message_pos, message, ha="center", color="C0", va="top", **text_options
+        *message_pos,
+        message,
+        ha="center",
+        color="k",
+        va="top",
+        **text_options,
     )
 
 
