@@ -38,14 +38,48 @@ plt.rcParams.update(
 # real dates
 commit_status_messages = {
     "5ed030fd8df9a137338766ca9cdb01d4c3c6a950": "Started writing",
-    "74d7c44f8f8bfcfa3f2623305735ac1339e498af": "Finished introduction",
+    "e328113ec7c6706601ef9da0297d7a82f7c97b5f": "Defining overall format",
+    "395d313b066f7534e0e06c6f30ef4f98c324b14f": "Started writing one appendix",
+    "cd4dbc7d9e89ab182c2fb82792f77e03094685b2": "Started writing the results and discussions (Urea)",
+    "860d47b05b81675bedf326f47d2ddda15ac9cd4a": "Decided on another table format",
+    "af6cfc5d7130763f0fd1638dd78ab3942c50f31d": "Started to add figures as pdfs, not pngs",
+    "248b5a49e1ca6c1776c3d49fe6b4d427614fb33f": "Continued battling Urea in the discussion (SAXS, DLS, DSC)",
+    "86e48e9b0b09ff4103af5345caae4cb66cbd7f7c": "Finished Urea",
+    "f98a90abac29c0623674a31148f923399ccbb2ab": "Tidying up some code to add as listings",
+    "d925eb70b4e6d9bf690affe321b30b2c47a9d306": "Started Materials and Methods",
     "c6c41bac1cf01bb4b767efd0736bedc8ae8c6b04": "Finished Materials and Methods",
-    "c050c53d94caa6fa219c68bbe20f7d5fbe04ef4e": "Main text finished, wrapping up references",
+    "15ba65d44811d9f6ff5915567f0e615e7c750e03": "Started writing introduction",
+    "74d7c44f8f8bfcfa3f2623305735ac1339e498af": "Finished introduction draft",
+    "995209f2a17ee61f94763b4f8d50c445a84f7c00": "Started writing Background Theory (Rheology)",
+    "a852e2a71c727b3fac129c5ac9f7cc1cba9ac2f4": "Background Theory (ITC)",
+    "f3a2274f4fc9f877252df0b86fceee27c67961cc": "Background Theory (SAXS)",
+    "ce9eb41680b28bdc3fce4ad39f4e087df016fbfa": "Background Theory (SAXS) rewritten from scratch",
+    "ad5f0740bd6a1e278cb14761f2d95dd722ba2513": "Added several illustrative plots",
+    "59f4f3ca60cb8a25185b4e690ec11460b2e04424": "Continued discussion (Rheology, ITC)",
+    "a5f886f9a60a6857e6cb85dbfc3c5bb2680a0e48": "Multivariate analysis added",
+    "299d6e4565deaf05f4288461e332390c9669b8c4": "Noticed more information had to be added to Background Theory",
+    "a5b3b317b90da1d873e4382f5ba47b202277d2a9": "Continued the Results and Discussion",
+    "0e5ba506bcd8951cd0a8358597b4abe049e40a6d": "Finished first part of Results and Discussion draft",
+    "5507ff4b3a29392d3e9a8ce78d11b2b58274ee64": "Started writing about the Results and Discussion of the nonfortuitous kinetics work",
+    "774b8636eb248628730ba78dfaf33ad487e21c67": "Finished the nonfortuitous kinetics work",
+    "da0fefa6be3c859b0feb334823e77ba25b05d918": "Added an appendix citing my contributions to other works",
+    "c050c53d94caa6fa219c68bbe20f7d5fbe04ef4e": "Hopefully finished writing the Background Theory.",
+    "1fc1c8266b5d3fb15f6893dd12a536558fde3277": "Started wrapping up cross-references, citations, small corrections, etc.",
+    "b9acc0d0da67c99ccf4b73fe10662bbefc655378": "Finished revising cross-references",
     "35254976ab9a9d54ab5a47d7e269fb101837d39a": "Sent for correction and review to friends, family and supervisor",
-    "c12761b75589a493430b713f07cd3b0e37dbbcc6": "Sent to committee",  # Todo: check emails to see if it's really here
-    "38f3c13c31bdf71d43f4878b6c614af52d34f2e9": "Approved! Revising committee suggestions",
-    "e6bf1efcfffb6301457da6d66bc7a29d6a99e29c": "Sent to institutional approval",
-    "30937f61271564f7d5b3fd59a852ee590e101115": "Final approval - Diploma incoming",
+    "a70bc21ea0d32d0b8b573b98644d5f6b5333a6ea": "Went through the review by my mother",
+    "77344f08c27585281a923f804d0860bd77e420b7": "Went through the review by a close friend",
+    "7984ed8d3a5ef67a8366aae94b26f351b0bf1403": "Started working on the review by my supervisor",
+    "c12761b75589a493430b713f07cd3b0e37dbbcc6": "Sent to committee (12th Feb. 2019)",  # Sent on the 12th of February.
+    "d0ad630be3604b73cf82e07a6d63f2863e8045b2": "Approved (19th March 2019)! Revising committee suggestions",
+    "38f3c13c31bdf71d43f4878b6c614af52d34f2e9": "Finished revising suggestions by Member 1 (Be)",
+    "8896a7f5108ff4d700cbc6ded1f72c5272140c01": "Finished revising suggestions by Member 2 (Bo)",
+    "b34ac69f9a65ac4a2b8a311fe21dc6bcf2e3f392": "Finished revising suggestions by Member 3 (PM)",
+    "7d425169c76aefe5b439c0337f8c4df4fb593b1f": "Finished revising suggestions by Member 4 (WL)",
+    "65f4681432a262a1f550b336f88c300e5d6eb164": "Minor corrections and bureaucratic changes",
+    "47c4a42c8c1ee33aa003a48ea91e734175a5ecfa": "Added library catalog info",
+    "e6bf1efcfffb6301457da6d66bc7a29d6a99e29c": "Started back and forth to fit institutional formatting requirements",
+    "30937f61271564f7d5b3fd59a852ee590e101115": "Final approval - Diploma incoming!",
 }
 
 color_code_axes = dict(
@@ -559,13 +593,13 @@ def add_stats_graph(
         label="Eqs",
         c=color_code_axes["eq"],
     )
-    ax_stats.plot(
-        list_deltas_days,
-        list_list_count,
-        marker="o",
-        label="List",
-        c=color_code_axes["list"],
-    )
+    # ax_stats.plot(
+    #     list_deltas_days,
+    #     list_list_count,
+    #     marker="o",
+    #     label="List",
+    #     c=color_code_axes["list"],
+    # )
     ax_stats.plot(
         list_deltas_days,
         list_tab_count,
@@ -899,5 +933,5 @@ def test_header():
 
 # test_stats()
 # test_wordcloud()
-test_all_graphs()
-# test_header()
+# test_all_graphs()
+test_header()
