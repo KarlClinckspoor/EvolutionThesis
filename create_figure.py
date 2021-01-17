@@ -116,8 +116,6 @@ def create_wordcloud(
         width=width,
         height=height,
         background_color=background_color,
-        colormap="gnuplot",
-        max_words=30,
         **kwargs,
     ).generate_from_frequencies(word_Counter)
     return cloud
@@ -262,6 +260,54 @@ def load_joined_pdf_image(sha: str, extension: str = ".jpeg") -> np.ndarray:
     return fig_text
 
 
+def create_frame_() -> matplotlib.figure.Figure:
+    """Creates a figure object and several axes at the specific regions.
+
+    Returns:
+        matplotlib.figure.Figure: Figure object
+        matplotlib.axes: Several axes
+    """
+    fig_width_height_ratio = 1920 / 1080
+    fig_base_width_inch = 12
+    a4_width_mm = 210
+    a4_height_mm = 297
+
+    fig = plt.figure(
+        figsize=(
+            fig_base_width_inch,
+            fig_base_width_inch / fig_width_height_ratio,
+        ),
+        constrained_layout=True,
+    )
+
+    gs = fig.add_gridspec(10, 10)
+    ax_text = fig.add_subplot(gs[0:, :7])
+    ax_header = fig.add_subplot(gs[0:2, 7:])
+    ax_stats = fig.add_subplot(gs[3:7, 7:])
+    ax_wc = fig.add_subplot(gs[7:, 7:])
+
+    ax_text.set_xticklabels([])
+    ax_text.set_xticks([])
+    ax_text.set_yticklabels([])
+    ax_text.set_yticks([])
+
+    ax_header.set_xticklabels([])
+    ax_header.set_xticks([])
+    ax_header.set_yticklabels([])
+    ax_header.set_yticks([])
+
+    # ax_stats.set_xticklabels([])
+    # ax_stats.set_xticks([])
+    # ax_stats.set_yticklabels([])
+    # ax_stats.set_yticks([])
+
+    ax_wc.set_xticklabels([])
+    ax_wc.set_xticks([])
+    ax_wc.set_yticklabels([])
+    ax_wc.set_yticks([])
+    return fig, ax_text, ax_header, ax_stats, ax_wc
+
+
 def create_frame() -> matplotlib.figure.Figure:
     """Creates a figure object and several axes at the specific regions.
 
@@ -305,7 +351,9 @@ def create_frame() -> matplotlib.figure.Figure:
     ax_header_extra_height = -0.1
 
     ax_header_left = ax_text_left + ax_text_width + ver_dividing_buffer
-    ax_header_bottom = 1 - margin - subfig_height - ax_header_extra_height
+    ax_header_bottom = (
+        1 - margin - subfig_height - ax_header_extra_height + 0.01
+    )
     ax_header_width = 1 - ax_text_width - 3 * margin
     ax_header_height = subfig_height + ax_header_extra_height
     ax_header_rect = [
@@ -336,15 +384,17 @@ def create_frame() -> matplotlib.figure.Figure:
         ax_stats_height,
     ]
 
+    ax_wc_extra_bottom = 0.058
     ax_wc_left = ax_header_left
     ax_wc_bottom = (
         ax_stats_bottom
         - subfig_height
         - hor_dividing_buffer
         - ax_stats_buffer_labels
+        - ax_wc_extra_bottom
     )
     ax_wc_width = ax_header_width
-    ax_wc_height = subfig_height
+    ax_wc_height = subfig_height + ax_wc_extra_bottom
     ax_wc_rect = [ax_wc_left, ax_wc_bottom, ax_wc_width, ax_wc_height]
 
     # [left, bottom, width, height]
@@ -565,11 +615,13 @@ def add_stats_graph(
         list_latex_comm_count.append(sum(stat.command_Counter.values()))
         list_latex_env_count.append(sum(stat.env_Counter.values()))
 
+    ms = 4
     ax_stats.plot(
         list_deltas_days,
         list_word_counts,
         marker="o",
         label="Words",
+        ms=ms,
         c=color_code_axes["wc"],
     )
     ax_stats.plot(
@@ -577,6 +629,7 @@ def add_stats_graph(
         list_unique_word_counts,
         marker="o",
         label="UWords",
+        ms=ms,
         c=color_code_axes["uwc"],
     )
     ax_stats.plot(
@@ -584,6 +637,7 @@ def add_stats_graph(
         list_fig_count,
         marker="o",
         label="Figs",
+        ms=ms,
         c=color_code_axes["fig"],
     )
     ax_stats.plot(
@@ -591,6 +645,7 @@ def add_stats_graph(
         list_eq_count,
         marker="o",
         label="Eqs",
+        ms=ms,
         c=color_code_axes["eq"],
     )
     # ax_stats.plot(
@@ -605,6 +660,7 @@ def add_stats_graph(
         list_tab_count,
         marker="o",
         label="Table",
+        ms=ms,
         c=color_code_axes["tab"],
     )
     # ax_stats.plot(
@@ -620,7 +676,9 @@ def add_stats_graph(
     #     label="LEnv",
     # )
     # ax_stats.legend(fontsize=6)
-    ax_stats.set(xlabel="Days", ylabel="count")
+    ax_stats.set(xlabel="Days elapsed", ylabel="Count")
+    ax_stats.grid(which="major", ls="-", color="gray", alpha=0.9)
+    ax_stats.grid(which="minor", ls=":", color="gray", alpha=0.5)
 
 
 # TODO: Implement this
@@ -799,23 +857,25 @@ def test_all_graphs():
             list_of_Stats.append(st)
     list_of_Stats.sort(key=lambda x: x.date)
 
-    # TODO: Create 2 reference wordclouds. First, with only a few select words
-    # (20-30 ish), then another one with ~100-200. Position the one with 20-30
-    # using the ~100-200. The remaining words will probably appear in the
-    # initial wordclouds, so they can appear and disappear in "free" spaces as
-    # the figure evolves.
+    wc_kws = dict(
+        width=450,
+        height=300,
+        random_state=9,
+        colormap="brg",
+        background_color="white",
+        relative_scaling=1,
+        min_font_size=8,
+    )
     reference_cloud = create_wordcloud(
-        list_of_Stats[-1].reduced_word_Counter, width=580, height=300
+        list_of_Stats[-1].reduced_word_Counter, **wc_kws
     )
     # reference_wc = list_of_Stats[-1].word_count
-    reference_wc = sum(list_of_Stats[-1].reduced_word_Counter.values())
+    reference_wc = sum(list_of_Stats[-2].reduced_word_Counter.values())
 
     starting_stat = fix_specific_things(list_of_Stats[0])
     previous_message = ""
 
     for i, stat in enumerate(list_of_Stats):
-        if i + 1 > len(list_of_Stats) - 3:
-            continue
         stat = fix_specific_things(stat)
         fig, ax_text, ax_header, ax_stats, ax_wc = create_frame()
         add_stats_graph(ax_stats, list_of_Stats[: i + 1])
@@ -823,16 +883,19 @@ def test_all_graphs():
         sha = stat.commit_hash
         fig_text = load_joined_pdf_image(sha, ".jpeg")
         ax_text.imshow(
-            fig_text,  # interpolation="hanning", aspect="equal", origin="upper"
-        )
+             fig_text,  # interpolation="hanning", aspect="equal", origin="upper"
+         )
 
-        cloud = create_wordcloud(
-            stat.reduced_word_Counter, width=580, height=300
-        )
+        cloud = create_wordcloud(stat.reduced_word_Counter, **wc_kws)
         target_wc = sum(stat.reduced_word_Counter.values())
-        # target_wc = stat.word_count
-        scaled_cl = scale_wordcloud(
-            cloud, reference_cloud, target_wc, reference_wc
+        scaled_cl = transfer_stats_between_wc(
+            reference_cloud,
+            cloud,
+            transfer_pos=True,
+            transfer_fontsize=True,
+            transfer_color=True,
+            transfer_orientation=True,
+            transfer_unk=True,
         )
 
         wc_im = add_wordcloud(ax_wc, scaled_cl)
@@ -939,7 +1002,15 @@ def test_header():
         plt.close(fig)
 
 
+def test_layout():
+    debug = True
+    stuff = create_frame()
+    # stuff = create_frame_()
+    plt.show()
+
+
 # test_stats()
 # test_wordcloud()
-# test_all_graphs()
-test_header()
+test_all_graphs()
+# test_header()
+# test_layout()
