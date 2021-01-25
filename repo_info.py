@@ -9,10 +9,8 @@ from text_stats import Stats, open_file
 import glob
 import pathlib
 
-# TODO: Add option to move this to another folder
 
-
-def create_commit_list(repo: git.Repo) -> list:
+def create_commit_list(repo: git.Repo, out_filename: str = 'git_commits_info.txt') -> list:
     """Goes through the commits and generates an external text file that has the
     sha, the commit message and the unix date.
 
@@ -20,7 +18,7 @@ def create_commit_list(repo: git.Repo) -> list:
         List of dicts containing the same elements that were written to the file
     """
     commits = []
-    with open("git_commits_info.txt", "w", encoding="utf8") as fhand:
+    with open(out_filename, "w", encoding="utf8") as fhand:
         # Write header to file
         fhand.write("sha;message;timestamp\n")
         for commit in repo.iter_commits():

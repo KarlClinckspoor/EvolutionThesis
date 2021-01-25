@@ -19,6 +19,7 @@ import datetime
 from typing import Union, List, Tuple
 import numpy as np
 
+# To stop a PIL warning that the image is too large
 import PIL
 
 PIL.Image.MAX_IMAGE_PIXELS = 933120000
@@ -34,8 +35,7 @@ plt.rcParams.update(
 )
 
 
-# Messages to put on specific commit statuses. TODO: Needs to match the times, and the commits, to
-# real dates
+# Messages to put on specific commit statuses.
 commit_status_messages = {
     "5ed030fd8df9a137338766ca9cdb01d4c3c6a950": "Started writing",
     "e328113ec7c6706601ef9da0297d7a82f7c97b5f": "Defining overall format",
@@ -82,13 +82,9 @@ commit_status_messages = {
     "30937f61271564f7d5b3fd59a852ee590e101115": "Final approval - Diploma incoming!",
 }
 
-color_code_axes = dict(
-    wc="C0",
-    uwc="C1",
-    fig="C2",
-    tab="C3",
-    eq="C4",
-    list="C5",
+# Define the colors of each type of stat used
+color_code_stats = dict(
+    wc="C0", uwc="C1", fig="C2", tab="C3", eq="C4", list="C5",
 )
 
 
@@ -165,8 +161,6 @@ def transfer_stats_between_wc(
     return target_cloud
 
 
-# TODO: Scale the wordcloud using a less strict method. Maybe use a sigmoidal?
-# Logistic?
 def scale_wordcloud(
     target_cloud: WordCloud,
     reference_cloud: WordCloud,
@@ -214,8 +208,7 @@ def scale_wordcloud(
                 / np.log10(reference_wordcount)
             )
         elif scale_type == "logistic":
-            assert False
-            pass
+            assert False  # Not implemented
             # f(x) = L / (1 + e^(-k(x-x0)))
             # https://en.wikipedia.org/wiki/Logistic_function
             def logistic(x, L, k, x0):
@@ -261,7 +254,7 @@ def load_joined_pdf_image(sha: str, extension: str = ".jpeg") -> np.ndarray:
 
 
 def create_frame_() -> matplotlib.figure.Figure:
-    """Creates a figure object and several axes at the specific regions.
+    """An unsuccessful attempt to use gridspec to create the axes.
 
     Returns:
         matplotlib.figure.Figure: Figure object
@@ -313,7 +306,10 @@ def create_frame() -> matplotlib.figure.Figure:
 
     Returns:
         matplotlib.figure.Figure: Figure object
-        matplotlib.axes: Several axes
+        matplotlib.axes: Axis where the collated text will appear
+        matplotlib.axes: Axis where the header will appear
+        matplotlib.axes: Axis where the stats graph will appear
+        matplotlib.axes: Axis where the wordcloud will appear
     """
     fig_width_height_ratio = 1920 / 1080
     fig_base_width_inch = 12
@@ -352,7 +348,7 @@ def create_frame() -> matplotlib.figure.Figure:
 
     ax_header_left = ax_text_left + ax_text_width + ver_dividing_buffer
     ax_header_bottom = (
-        1 - margin - subfig_height - ax_header_extra_height + 0.01
+        1 - margin - subfig_height - ax_header_extra_height + 0.005
     )
     ax_header_width = 1 - ax_text_width - 3 * margin
     ax_header_height = subfig_height + ax_header_extra_height
@@ -434,135 +430,18 @@ def create_frame() -> matplotlib.figure.Figure:
     return fig, ax_text, ax_header, ax_stats, ax_wc
 
 
-def create_frame_with_cb() -> matplotlib.figure.Figure:
-    fig_width_height_ratio = 1920 / 1080
-    fig_base_width_inch = 12
-    a4_width_mm = 210
-    a4_height_mm = 297
+def add_wordcloud(ax_wc, cloud: WordCloud):
+    """Adds a wordcloud to a matplotlib axis
 
-    fig = plt.figure(
-        figsize=(
-            fig_base_width_inch,
-            fig_base_width_inch / fig_width_height_ratio,
-        )
-    )
+    Args:
+        ax_wc (matplotlib axis): The axis where the wordcloud will be drawn
+        cloud (WordCloud): The wordcloud image to be drawn 
 
-    # Axis design
-    # Left side: mostly occupied by the axis containing the pdf
-    # Right side: contains the statistics
-    # Right side header: date, time delta, commit hash (added as ax_header)
-    # Some base stats (word count, etc) (added as ax_header)
-    # Figure containing the evolution of several stats (word counts, unique word
-    # counts, etc) (ax_stats)
-    # Figure containing the wordcloud of nonstopping words (ax_wc)
-
-    margin = 0.01
-    # Define positions
-    ax_text_left = margin
-    ax_text_bottom = margin
-    ax_text_width = 0.65
-    ax_text_height = 1 - margin
-    ax_text_rect = [ax_text_left, ax_text_bottom, ax_text_width, ax_text_height]
-
-    hor_dividing_buffer = 0.01
-    ver_dividing_buffer = 0.01
-    subfig_height = 0.3
-
-    ax_header_extra_height = 0.05
-
-    ax_header_left = ax_text_left + ax_text_width + ver_dividing_buffer
-    ax_header_bottom = 1 - margin - subfig_height - ax_header_extra_height
-    ax_header_width = 1 - ax_text_width - 3 * margin
-    ax_header_height = subfig_height + ax_header_extra_height
-    ax_header_rect = [
-        ax_header_left,
-        ax_header_bottom,
-        ax_header_width,
-        ax_header_height,
-    ]
-
-    ax_stats_buffer_labels = 0.01
-    ax_stats_left = ax_header_left + ax_stats_buffer_labels
-    ax_stats_bottom = (
-        ax_header_bottom
-        - subfig_height
-        - hor_dividing_buffer
-        + ax_stats_buffer_labels
-    )
-    ax_stats_width = ax_header_width - ax_stats_buffer_labels
-    ax_stats_height = subfig_height - ax_stats_buffer_labels
-    ax_stats_rect = [
-        ax_stats_left,
-        ax_stats_bottom,
-        ax_stats_width,
-        ax_stats_height,
-    ]
-
-    ax_wc_cb_width = 0.02
-    ax_wc_cb_buffer = 0.01
-    ax_wc_left = ax_header_left
-    ax_wc_bottom = ax_stats_bottom - subfig_height - hor_dividing_buffer
-    ax_wc_width = ax_stats_width - ax_wc_cb_width
-    ax_wc_height = subfig_height
-    ax_wc_rect = [ax_wc_left, ax_wc_bottom, ax_wc_width, ax_wc_height]
-
-    ax_wc_cb_left = ax_wc_left + ax_wc_width + ax_wc_cb_buffer
-    ax_wc_cb_bottom = ax_wc_bottom
-    ax_wc_cb_height = ax_wc_height
-    ax_wc_cb_rect = [
-        ax_wc_cb_left,
-        ax_wc_cb_bottom,
-        ax_wc_cb_width,
-        ax_wc_cb_height,
-    ]
-
-    # [left, bottom, width, height]
-    ax_text = fig.add_axes(ax_text_rect)
-    ax_header = fig.add_axes(ax_header_rect)
-    ax_stats = fig.add_axes(ax_stats_rect)
-    ax_wc = fig.add_axes(ax_wc_rect)
-    ax_wc_cb = fig.add_axes(ax_wc_cb_rect)
-    if debug:
-        ax_text.text(0.5, 0.5, "text")
-        ax_header.text(0.5, 0.5, "header")
-        ax_stats.text(0.5, 0.5, "stats")
-        ax_wc.text(0.5, 0.5, "wc")
-
-    ax_text.set_xticklabels([])
-    ax_text.set_xticks([])
-    ax_text.set_yticklabels([])
-    ax_text.set_yticks([])
-
-    ax_header.set_xticklabels([])
-    ax_header.set_xticks([])
-    ax_header.set_yticklabels([])
-    ax_header.set_yticks([])
-
-    # ax_stats.set_xticklabels([])
-    # ax_stats.set_xticks([])
-    # ax_stats.set_yticklabels([])
-    # ax_stats.set_yticks([])
-
-    ax_wc.set_xticklabels([])
-    ax_wc.set_xticks([])
-    ax_wc.set_yticklabels([])
-    ax_wc.set_yticks([])
-
-    # if debug:
-    #     plt.savefig("teste.png")
-    #     plt.show()
-    return fig, ax_text, ax_header, ax_stats, ax_wc, ax_wc_cb
-
-
-def add_wordcloud(
-    ax_wc: matplotlib.axes._axes.Axes, cloud: WordCloud
-) -> matplotlib.axes._axes.Axes:
+    Returns:
+        Image: The image resulting from calling imshow.
+    """
     im = ax_wc.imshow(cloud, interpolation="bilinear")
     return im
-
-
-# def add_colorbar(image, cax):
-#     plt.colorbar(image, cax=cax)
 
 
 def add_stats_graph(
@@ -581,21 +460,22 @@ def add_stats_graph(
             attributes (List[str], optional): The attributes of the Stats class that will be plotted
     """
     start_date = datetime.datetime.fromtimestamp(start_timestamp)
-    # Y-Axis
+    # Y-Axis: Declaring the containers
     list_word_counts: List[int] = []
     list_unique_word_counts: List[int] = []
     list_fig_count: List[int] = []
     list_tab_count: List[int] = []
     list_eq_count: List[int] = []
-    list_list_count: List[int] = []
-    list_latex_comm_count: List[int] = []
-    list_latex_env_count: List[int] = []
+    # list_list_count: List[int] = []
+    # list_latex_comm_count: List[int] = []
+    # list_latex_env_count: List[int] = []
 
-    # X-axis
+    # X-axis: Declaring the containers
     list_dates: List[datetime.datetime] = []
     list_delta: List[datetime.timedelta] = []
     list_deltas_days: List[float] = []
 
+    # Populating the containers
     for stat in list_of_Stats:
         # X-axis
         date = datetime.datetime.fromtimestamp(int(stat.date))
@@ -610,19 +490,20 @@ def add_stats_graph(
         list_unique_word_counts.append(stat.unique_word_count)
         list_fig_count.append(stat.figure_count)
         list_eq_count.append(stat.equation_counts)
-        list_list_count.append(stat.listing_count)
+        # list_list_count.append(stat.listing_count)
         list_tab_count.append(stat.table_count)
-        list_latex_comm_count.append(sum(stat.command_Counter.values()))
-        list_latex_env_count.append(sum(stat.env_Counter.values()))
+        # list_latex_comm_count.append(sum(stat.command_Counter.values()))
+        # list_latex_env_count.append(sum(stat.env_Counter.values()))
 
-    ms = 4
+    ms = 4  # Defining markersize
+    # Plotting everything. Labels and legend are unused at the moment.
     ax_stats.plot(
         list_deltas_days,
         list_word_counts,
         marker="o",
         label="Words",
         ms=ms,
-        c=color_code_axes["wc"],
+        c=color_code_stats["wc"],
     )
     ax_stats.plot(
         list_deltas_days,
@@ -630,7 +511,7 @@ def add_stats_graph(
         marker="o",
         label="UWords",
         ms=ms,
-        c=color_code_axes["uwc"],
+        c=color_code_stats["uwc"],
     )
     ax_stats.plot(
         list_deltas_days,
@@ -638,7 +519,7 @@ def add_stats_graph(
         marker="o",
         label="Figs",
         ms=ms,
-        c=color_code_axes["fig"],
+        c=color_code_stats["fig"],
     )
     ax_stats.plot(
         list_deltas_days,
@@ -646,49 +527,33 @@ def add_stats_graph(
         marker="o",
         label="Eqs",
         ms=ms,
-        c=color_code_axes["eq"],
+        c=color_code_stats["eq"],
     )
-    # ax_stats.plot(
-    #     list_deltas_days,
-    #     list_list_count,
-    #     marker="o",
-    #     label="List",
-    #     c=color_code_axes["list"],
-    # )
     ax_stats.plot(
         list_deltas_days,
         list_tab_count,
         marker="o",
         label="Table",
         ms=ms,
-        c=color_code_axes["tab"],
+        c=color_code_stats["tab"],
     )
-    # ax_stats.plot(
-    #     list_deltas_days,
-    #     list_latex_comm_count,
-    #     marker="o",
-    #     label="LComm",
-    # )
-    # ax_stats.plot(
-    #     list_deltas_days,
-    #     list_latex_env_count,
-    #     marker="o",
-    #     label="LEnv",
-    # )
-    # ax_stats.legend(fontsize=6)
     ax_stats.set(xlabel="Days elapsed", ylabel="Count")
     ax_stats.grid(which="major", ls="-", color="gray", alpha=0.9)
     ax_stats.grid(which="minor", ls=":", color="gray", alpha=0.5)
 
 
-# TODO: Implement this
 def add_header(
     ax_header, reference_Stat: Stats, current_Stat: Stats, message: str
 ) -> None:
-    # Layout:
-    # Date:       Day X
-    # Message/Status
-    # Some stats, perhaps word count
+    """Takes an axis instance and fills it with text related to a reference
+    Stat, such as time elapsed, and also information about the current stat.
+
+    Args:
+        ax_header (matplotlib axis): The axis where text will be drawn
+        reference_Stat (Stats): The reference (last) Stat object
+        current_Stat (Stats): The current Stat object
+        message (str): The message that needs to be placed
+    """
 
     # Calculate stuff
     timedelta = datetime.datetime.fromtimestamp(
@@ -700,8 +565,10 @@ def add_header(
         list((Path(pdf_pages_path) / current_Stat.commit_hash).glob("*png"))
     )
 
+    # Text settings
     text_options = dict(fontsize=12, usetex=True)
-    # Text positions in axis coordinates (%)
+    # Text positions in data coordinates (!) I thought it was axis coordinates,
+    # but it's working now.
     line1_height = 0.88
     line2_height = 0.76
     line3_height = 0.68
@@ -709,10 +576,13 @@ def add_header(
     line5_height = 0.28
     line6_height = 0.12
 
+    # All text in the leftmost column is left-aligned. Text in the center column
+    # is center-aligned and in the right column, it's right-aligned.
     col1_left = 0.05
     col2_center = 0.5
     col3_right = 0.95
 
+    # Configuring the positions of the text entries
     # Line 1
     sha_pos = (col2_center, line1_height)
     # Line 2
@@ -727,6 +597,7 @@ def add_header(
     numeqs_pos = (col2_center, line6_height)
     numtabs_pos = (col3_right, line6_height)
 
+    # Placing the text
     # Line 1
     ax_header.text(*sha_pos, sha, ha="center", **text_options)
     # Line 2
@@ -737,14 +608,14 @@ def add_header(
         *wordcount_pos,
         f"Words: {current_Stat.word_count}",
         ha="left",
-        color=color_code_axes["wc"],
+        color=color_code_stats["wc"],
         **text_options,
     )
     ax_header.text(
         *unique_wordcount_pos,
         f"Unique words: {current_Stat.unique_word_count}",
         ha="center",
-        color=color_code_axes["uwc"],
+        color=color_code_stats["uwc"],
         **text_options,
     )
     ax_header.text(
@@ -755,49 +626,132 @@ def add_header(
         *numfigs_pos,
         f"Figures: {current_Stat.figure_count}",
         ha="left",
-        color=color_code_axes["fig"],
+        color=color_code_stats["fig"],
         **text_options,
     )
     ax_header.text(
         *numeqs_pos,
         f"Equations: {current_Stat.equation_counts}",
         ha="center",
-        color=color_code_axes["eq"],
+        color=color_code_stats["eq"],
         **text_options,
     )
     ax_header.text(
         *numtabs_pos,
         f"Tables: {current_Stat.table_count}",
         ha="right",
-        color=color_code_axes["tab"],
+        color=color_code_stats["tab"],
         **text_options,
     )
 
-    # Message line
+    # Message line. This ensures the text will fit in the provided area
     import textwrap
 
     # Message line
     message_pos = (col2_center, line4_height)
 
-    maximum_width = 50
+    maximum_width = 50  # Hardcoded to the dimensions of this figure.
     message = textwrap.fill(message, width=maximum_width)
+    # If there's two lines, move text up a bit to fit better
     numlines = len(message.split("\n"))
     if numlines == 2:
         message_pos = (message_pos[0], message_pos[1] + 0.07)
     ax_header.text(
-        *message_pos,
-        message,
-        ha="center",
-        color="k",
-        va="top",
-        **text_options,
+        *message_pos, message, ha="center", color="k", va="top", **text_options,
     )
 
 
-def test_stats():
+def create_all_graphs(figure_output_path: str = frames_path) -> None:
+    """Creates a figure containing all the graphs and saves it to frames_path.
+    """
+    # Loads all the pickled Stats files
+    files = Path(stats_basepath).glob("*.pkl")
+    list_of_Stats = []
+    for file in files:
+        with open(file, "rb") as fhand:
+            st = pickle.load(fhand)
+            list_of_Stats.append(st)
+    list_of_Stats.sort(key=lambda x: x.date)
+
+    # Creates a standard for the wordclouds that will be created
+    wc_kws = dict(
+        width=450,
+        height=300,
+        random_state=9,
+        colormap="brg",
+        background_color="white",
+        relative_scaling=1,
+        min_font_size=8,
+    )
+    # This is the last wordcloud, which dictates the positioning of the words in
+    # the previous wordclouds.
+    reference_cloud = create_wordcloud(
+        list_of_Stats[-1].reduced_word_Counter, **wc_kws,
+    )
+    # Hardcoded to -2 because my last commit is unrelated to the writing process
+    reference_wc = sum(list_of_Stats[-2].reduced_word_Counter.values())
+
+    starting_stat = fix_specific_things(list_of_Stats[0])
+    previous_message = ""
+
+    # Start of figure creation
+    for i, stat in enumerate(list_of_Stats):
+        sha = stat.commit_hash
+        # sha '714fad5902cfb17cf54633e4dba4314a74675047' is almost a repeat, but removing it is not necessary
+        stat = fix_specific_things(stat)
+        fig, ax_text, ax_header, ax_stats, ax_wc = create_frame()
+
+        # First, fill in the Text axis
+        # Loads the compressed images, although I don't think that improved
+        # performance much.
+        fig_text = load_joined_pdf_image(sha, ".jpeg")
+        ax_text.imshow(fig_text)
+
+        # Next, fill in the header.
+        message = commit_status_messages.get(stat.commit_hash, None)
+        if not message:
+            message = previous_message
+        else:
+            previous_message = message
+
+        add_header(
+            ax_header, starting_stat, stat, message=message,
+        )
+        # Then create the Stats graph
+        # Creates and plots the stats graph using every stat up to the current one
+        add_stats_graph(ax_stats, list_of_Stats[: i + 1])
+        ax_stats.set_yscale("log")  # I think I prefer this way
+
+        # Lastly create the wordcloud
+        cloud = create_wordcloud(stat.reduced_word_Counter, **wc_kws)
+        target_wc = sum(stat.reduced_word_Counter.values())
+        scaled_cl = transfer_stats_between_wc(
+            reference_cloud,
+            cloud,
+            transfer_pos=True,
+            transfer_fontsize=True,
+            transfer_color=True,
+            transfer_orientation=True,
+            transfer_unk=True,
+        )
+        wc_im = add_wordcloud(ax_wc, scaled_cl)
+
+        fig.savefig(Path(frames_path) / f"{i:03d}.png", dpi=300)
+        plt.close(fig)
+        print(f"Processed {i:03d}", flush=True)
+
+
+# Functions to test stuff
+
+
+def create_test_Stat(output_filename: str = "test_stats.pkl") -> None:
+    """Used to create a Stats object to test the wordcloud generation
+
+    Args:
+        output_filename (str, optional): Path to the pickled file to be created. Defaults to "test_stats.pkl".
+    """
     path = Path(thesis_path)
     tex_files = glob.glob(str(path / "*.tex"))
-    list_of_Stats = []
     full_text = []
     for file in tex_files:
         text = open_file(file)
@@ -816,15 +770,18 @@ def test_stats():
     st.debug = False
     st.calculate_stats()
     st = fix_specific_things(st)
-    # st.reduced_word_Counter["NaSal"] = st.reduced_word_Counter["nasal"]
-    # st.reduced_word_Counter["nasal"] = 0
-
-    with open("temp_stats.pkl", "wb") as fhand:
+    with open(output_filename, "wb") as fhand:
         pickle.dump(st, fhand)
 
 
-def test_wordcloud():
-    with open("temp_stats.pkl", "rb") as fhand:
+def test_wordcloud(pickle_path: str = "test_stats.pkl") -> None:
+    """Uses a Stats pickled object to generate a wordcloud. Can be created with
+    the create_test_Stat function.
+
+    Args:
+        pickle_path (str, optional): The path to the Stat object. Defaults to "test_stats.pkl".
+    """
+    with open(pickle_path, "rb") as fhand:
         st = pickle.load(fhand)
     cloud = create_wordcloud(st.reduced_word_Counter, width=580, height=300)
     # fig, ax_text, ax_header, ax_stats, ax_wc, ax_wc_cb = create_frame_with_cb()
@@ -835,7 +792,7 @@ def test_wordcloud():
 
 
 def test_stats_graph():
-    files = glob.glob("./stats/*.pkl")
+    files = list(Path(stats_basepath).glob("*.pkl"))
     list_of_Stats = []
     for file in files:
         with open(file, "rb") as fhand:
@@ -848,116 +805,7 @@ def test_stats_graph():
     plt.show()
 
 
-def test_all_graphs():
-    files = glob.glob("./stats/*.pkl")
-    list_of_Stats = []
-    for file in files:
-        with open(file, "rb") as fhand:
-            st = pickle.load(fhand)
-            list_of_Stats.append(st)
-    list_of_Stats.sort(key=lambda x: x.date)
-
-    wc_kws = dict(
-        width=450,
-        height=300,
-        random_state=9,
-        colormap="brg",
-        background_color="white",
-        relative_scaling=1,
-        min_font_size=8,
-    )
-    reference_cloud = create_wordcloud(
-        list_of_Stats[-1].reduced_word_Counter, **wc_kws
-    )
-    # reference_wc = list_of_Stats[-1].word_count
-    reference_wc = sum(list_of_Stats[-2].reduced_word_Counter.values())
-
-    starting_stat = fix_specific_things(list_of_Stats[0])
-    previous_message = ""
-
-    for i, stat in enumerate(list_of_Stats):
-        stat = fix_specific_things(stat)
-        fig, ax_text, ax_header, ax_stats, ax_wc = create_frame()
-        add_stats_graph(ax_stats, list_of_Stats[: i + 1])
-        ax_stats.set_yscale("log")
-        sha = stat.commit_hash
-        fig_text = load_joined_pdf_image(sha, ".jpeg")
-        ax_text.imshow(
-             fig_text,  # interpolation="hanning", aspect="equal", origin="upper"
-         )
-
-        cloud = create_wordcloud(stat.reduced_word_Counter, **wc_kws)
-        target_wc = sum(stat.reduced_word_Counter.values())
-        scaled_cl = transfer_stats_between_wc(
-            reference_cloud,
-            cloud,
-            transfer_pos=True,
-            transfer_fontsize=True,
-            transfer_color=True,
-            transfer_orientation=True,
-            transfer_unk=True,
-        )
-
-        wc_im = add_wordcloud(ax_wc, scaled_cl)
-
-        message = commit_status_messages.get(stat.commit_hash, None)
-        if not message:
-            message = previous_message
-        else:
-            previous_message = message
-
-        add_header(
-            ax_header,
-            starting_stat,
-            stat,
-            message=message,
-        )
-
-        fig.savefig(f"./figs/{i:03d}.png", dpi=100)
-        plt.close(fig)
-        print(f"Processed {i:03d}", flush=True)
-
-
 def test_header():
-    fig_width_height_ratio = 1920 / 1080
-    fig_base_width_inch = 12
-    a4_width_mm = 210
-    a4_height_mm = 297
-
-    # Axis design
-    # Left side: mostly occupied by the axis containing the pdf
-    # Right side: contains the statistics
-    # Right side header: date, time delta, commit hash (added as ax_header)
-    # Some base stats (word count, etc) (added as ax_header)
-    # Figure containing the evolution of several stats (word counts, unique word
-    # counts, etc) (ax_stats)
-    # Figure containing the wordcloud of nonstopping words (ax_wc)
-
-    margin = 0.01
-    # Define positions
-    ax_text_left = margin
-    ax_text_bottom = margin
-    ax_text_width = 0.65
-    ax_text_height = 1 - margin
-    ax_text_rect = [ax_text_left, ax_text_bottom, ax_text_width, ax_text_height]
-
-    hor_dividing_buffer = 0.01
-    ver_dividing_buffer = 0.01
-    subfig_height = 0.3
-
-    ax_header_extra_height = -0.1
-
-    ax_header_left = ax_text_left + ax_text_width + ver_dividing_buffer
-    ax_header_bottom = 1 - margin - subfig_height - ax_header_extra_height
-    ax_header_width = 1 - ax_text_width - 3 * margin
-    ax_header_height = subfig_height + ax_header_extra_height
-    ax_header_rect = [
-        ax_header_left,
-        ax_header_bottom,
-        ax_header_width,
-        ax_header_height,
-    ]
-
     files = glob.glob("./stats/*.pkl")
     list_of_Stats = []
     for file in files:
@@ -968,24 +816,10 @@ def test_header():
 
     reference_Stat = list_of_Stats[0]  # First one
 
-    # previous_message = commit_status_messages[reference_Stat.commit_hash]
     for i, stat in enumerate(list_of_Stats):
 
         print(f"Testing header {i}", flush=True)
-        fig = plt.figure(
-            figsize=(
-                fig_base_width_inch,
-                fig_base_width_inch / fig_width_height_ratio,
-            )
-        )
-
-        ax_header = fig.add_axes(ax_header_rect)
-
-        ax_header.set_xticklabels([])
-        ax_header.set_xticks([])
-        ax_header.set_yticklabels([])
-        ax_header.set_yticks([])
-
+        fig, ax_text, ax_header, ax_stats, ax_wc = create_frame()
         message = commit_status_messages.get(stat.commit_hash, None)
         if not message:
             message = previous_message
@@ -993,24 +827,18 @@ def test_header():
             previous_message = message
 
         add_header(
-            ax_header,
-            reference_Stat,
-            stat,
-            message=message,
+            ax_header, reference_Stat, stat, message=message,
         )
+        if not Path("./test_headers").is_dir():
+            Path("./test_headers").mkdir()
+
         plt.savefig(f"./test_headers/{i:03d}")
         plt.close(fig)
 
 
 def test_layout():
-    debug = True
-    stuff = create_frame()
-    # stuff = create_frame_()
+    create_frame()
     plt.show()
 
 
-# test_stats()
-# test_wordcloud()
-test_all_graphs()
-# test_header()
-# test_layout()
+create_all_graphs()
