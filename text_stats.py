@@ -808,10 +808,13 @@ def create_all_stats() -> None:
     repo = git.Repo(thesis_path)
     repo.git.checkout(starting_commit, force=True)
 
-    for commit in commits:
+    for i, commit in enumerate(commits):
+        print('Creating stats for', commit['sha'], f'{i+1}/{len(commits)}', flush=True)
         st = create_stats_from_sha(
             commit["sha"],
             repo,
         )[0]
+        print('\tSaving pickle', flush=True)
         st.pickle()
+        print('\tSaving text', flush=True)
         st.save_as_text()

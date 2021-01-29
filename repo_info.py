@@ -7,7 +7,7 @@ from config import thesis_path
 
 
 def create_commit_list(
-    repo: git.Repo, out_filename: str = "git_commits_info.txt"
+    out_filename: str = "git_commits_info.txt"
 ) -> list:
     """Goes through the commits and generates an external text file that has the
     sha, the commit message and the unix date.
@@ -15,6 +15,8 @@ def create_commit_list(
         Returns:
         List of dicts containing the same elements that were written to the file
     """
+    repo = git.Repo(thesis_path)
+    repo.git.checkout('master', '--force')
     commits = []
     with open(out_filename, "w", encoding="utf8") as fhand:
         # Write header to file
@@ -52,6 +54,5 @@ def load_commit_list(filename: str = "git_commits_info.txt") -> list:
 
 
 def test_repo_info():
-    repo = git.Repo(thesis_path)
-    create_commit_list(repo)
+    create_commit_list()
     print(load_commit_list("git_commits_info.txt"))

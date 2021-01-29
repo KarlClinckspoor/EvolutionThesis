@@ -121,4 +121,4 @@ def compile_all_pdfs() -> None:
             f'Compilation {i+1} of {len(commits)}: {commit["message"]}',
             flush=True,
         )
-        compile_pdf_from_sha(commit["sha"], repo, verbose=True)
+        compile_pdf_from_sha(commit["sha"], repo, verbose=False)
