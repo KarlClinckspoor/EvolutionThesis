@@ -1,26 +1,25 @@
-import matplotlib
-import matplotlib.pyplot as plt
-import imageio
-from wordcloud import WordCloud
-from config import *
-from collections import Counter
-from text_stats import (
-    Stats,
-    open_file,
-    create_stats_all_tex_files,
-    fix_specific_things,
-)
-from pathlib import Path
-import glob
-import pickle
-
 # import pandas as pd
 import datetime
-from typing import Union, List, Tuple
-import numpy as np
+import glob
+import pickle
+from collections import Counter
+from pathlib import Path
+from typing import List
 
 # To stop a PIL warning that the image is too large
 import PIL
+import imageio
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+from wordcloud import WordCloud
+
+from config import *
+from text_stats import (
+    Stats,
+    open_file,
+    fix_specific_things,
+)
 
 PIL.Image.MAX_IMAGE_PIXELS = 933120000
 
@@ -84,7 +83,12 @@ commit_status_messages = {
 
 # Define the colors of each type of stat used
 color_code_stats = dict(
-    wc="C0", uwc="C1", fig="C2", tab="C3", eq="C4", list="C5",
+    wc="C0",
+    uwc="C1",
+    fig="C2",
+    tab="C3",
+    eq="C4",
+    list="C5",
 )
 
 
@@ -108,7 +112,7 @@ def create_wordcloud(
     """
 
     cloud = WordCloud(
-        stopwords=[""],
+        stopwords={""},
         width=width,
         height=height,
         background_color=background_color,
@@ -131,7 +135,7 @@ def transfer_stats_between_wc(
 
         Args:
             reference_cloud (WordCloud): The wordcloud that will supply the
-            properties
+              properties
             target_cloud (WordCloud): The wordcloud that will be changed
             transfer_fontsize (bool): Choose to transfer the font size. Defaults to False.
             transfer_pos (bool): Choose to transfer the position. Defaults to False.
@@ -178,7 +182,10 @@ def scale_wordcloud(
             reference_cloud (WordCloud): The wordcloud that will be taken as the 100% size reference.
             target_wordcount (int): The sum of all word counts used to create the wordcloud that will be changed (<100%)
             reference_wordcount (int): The sum of all word counts used to create the reference (100%)
-            scale_type (str, optional): The type of scaling. It can be `linear`, where the percentage change of the word size is the ratio between the reference and target wordclouds. It can be `log`, where the ratio is the ratio of the log10 of each wordcount. Defaults to "log".
+            scale_type (str, optional): The type of scaling. It can be `linear`, where the percentage change of the word
+             size is the ratio between the reference and target wordclouds. It can be `log`, where the ratio is the
+             ratio of the log10 of each wordcount. Defaults to "log".
+
 
         Returns:
             WordCloud: The size adjusted wordcloud
@@ -197,38 +204,35 @@ def scale_wordcloud(
         word = item[0][0]
         if scale_type == "linear":
             scaled_fs = (
-                ref_cloud_fs.get(word, 1)
-                * target_wordcount
-                / reference_wordcount
+                ref_cloud_fs.get(word, 1) * target_wordcount / reference_wordcount
             )
-        if scale_type == "log":
+        else:
             scaled_fs = (
                 ref_cloud_fs.get(word, 1)
                 * np.log10(target_wordcount)
                 / np.log10(reference_wordcount)
             )
-        elif scale_type == "logistic":
-            assert False  # Not implemented
-            # f(x) = L / (1 + e^(-k(x-x0)))
-            # https://en.wikipedia.org/wiki/Logistic_function
-            def logistic(x, L, k, x0):
-                return L / (1 + 2.71 ** (-k * (x - x0)))
-
-            # Maximum value will be reference_wordcount * reference_fontsize
-            # Current value will be target_wordcount * word_fontsize
-            # L will be maximum value
-            # k will be found empirically
-            # x0 will be the mean of the values found?
-            # max_val = reference_wordcount * max(ref_cloud_fs.values())
-            # curr_val = target_wordcount * item[1]
-            # min_val = min(i[1] for i in target_cloud.layout_) * target_wordcount
-            # k = 10
-            # # x0 = (max_val + min_val) / (target_wordcount + reference_wordcount)
-            # x0 = (
-            #     max(ref_cloud_fs.values())
-            #     + min(i[1] for i in target_cloud.layout_)
-            # ) / (2)
-            # scaled_fs = logistic(item[1], max_val, k, x0)
+        # elif scale_type == "logistic":
+        #     assert False  # Not implemented
+        # f(x) = L / (1 + e^(-k(x-x0)))
+        # https://en.wikipedia.org/wiki/Logistic_function
+        # def logistic(x, L, k, x0):
+        #     return L / (1 + 2.71 ** (-k * (x - x0)))
+        # Maximum value will be reference_wordcount * reference_fontsize
+        # Current value will be target_wordcount * word_fontsize
+        # L will be maximum value
+        # k will be found empirically
+        # x0 will be the mean of the values found?
+        # max_val = reference_wordcount * max(ref_cloud_fs.values())
+        # curr_val = target_wordcount * item[1]
+        # min_val = min(i[1] for i in target_cloud.layout_) * target_wordcount
+        # k = 10
+        # # x0 = (max_val + min_val) / (target_wordcount + reference_wordcount)
+        # x0 = (
+        #     max(ref_cloud_fs.values())
+        #     + min(i[1] for i in target_cloud.layout_)
+        # ) / (2)
+        # scaled_fs = logistic(item[1], max_val, k, x0)
 
         newitem = list(item)
         newitem[1] = scaled_fs
@@ -262,8 +266,8 @@ def create_frame_() -> matplotlib.figure.Figure:
     """
     fig_width_height_ratio = 1920 / 1080
     fig_base_width_inch = 12
-    a4_width_mm = 210
-    a4_height_mm = 297
+    # a4_width_mm = 210
+    # a4_height_mm = 297
 
     fig = plt.figure(
         figsize=(
@@ -313,8 +317,8 @@ def create_frame() -> matplotlib.figure.Figure:
     """
     fig_width_height_ratio = 1920 / 1080
     fig_base_width_inch = 12
-    a4_width_mm = 210
-    a4_height_mm = 297
+    # a4_width_mm = 210
+    # a4_height_mm = 297
 
     fig = plt.figure(
         figsize=(
@@ -347,9 +351,7 @@ def create_frame() -> matplotlib.figure.Figure:
     ax_header_extra_height = -0.1
 
     ax_header_left = ax_text_left + ax_text_width + ver_dividing_buffer
-    ax_header_bottom = (
-        1 - margin - subfig_height - ax_header_extra_height + 0.005
-    )
+    ax_header_bottom = 1 - margin - subfig_height - ax_header_extra_height + 0.005
     ax_header_width = 1 - ax_text_width - 3 * margin
     ax_header_height = subfig_height + ax_header_extra_height
     ax_header_rect = [
@@ -370,9 +372,7 @@ def create_frame() -> matplotlib.figure.Figure:
         - ax_stats_extra_height
     )
     ax_stats_width = ax_header_width - ax_stats_buffer_labels
-    ax_stats_height = (
-        subfig_height - ax_stats_buffer_labels + ax_stats_extra_height
-    )
+    ax_stats_height = subfig_height - ax_stats_buffer_labels + ax_stats_extra_height
     ax_stats_rect = [
         ax_stats_left,
         ax_stats_bottom,
@@ -435,7 +435,7 @@ def add_wordcloud(ax_wc, cloud: WordCloud):
 
     Args:
         ax_wc (matplotlib axis): The axis where the wordcloud will be drawn
-        cloud (WordCloud): The wordcloud image to be drawn 
+        cloud (WordCloud): The wordcloud image to be drawn
 
     Returns:
         Image: The image resulting from calling imshow.
@@ -448,7 +448,6 @@ def add_stats_graph(
     ax_stats,
     list_of_Stats: List[Stats],
     start_timestamp: int = 1531090905,
-    attributes: List[str] = ["word_count", "unique_word_count"],
 ) -> None:
     """Creates a graph using the attributes specified, using the list_of_Stats,
     which can be a subset of the total stats you want to consider.
@@ -456,8 +455,8 @@ def add_stats_graph(
         Args:
             ax_stats (matplotlib axis): axis where the graph will be plotted
             list_of_Stats (List[Stats]): the ordered collection of stats to be added, from oldest to newest.
-            start_timestamp (int, optional): The timestamp of the first commit to be considered. Defaults to 1531090905, which is the first commit I have.
-            attributes (List[str], optional): The attributes of the Stats class that will be plotted
+            start_timestamp (int, optional): The timestamp of the first commit to be considered. Defaults to 1531090905,
+             which is the first commit I have.
     """
     start_date = datetime.datetime.fromtimestamp(start_timestamp)
     # Y-Axis: Declaring the containers
@@ -561,9 +560,7 @@ def add_header(
     ) - datetime.datetime.fromtimestamp(int(reference_Stat.date))
     date = str(datetime.datetime.fromtimestamp(int(current_Stat.date)))
     sha = current_Stat.commit_hash
-    pagenum = len(
-        list((Path(pdf_pages_path) / current_Stat.commit_hash).glob("*png"))
-    )
+    pagenum = len(list((Path(pdf_pages_path) / current_Stat.commit_hash).glob("*png")))
 
     # Text settings
     text_options = dict(fontsize=12, usetex=True)
@@ -657,13 +654,17 @@ def add_header(
     if numlines == 2:
         message_pos = (message_pos[0], message_pos[1] + 0.07)
     ax_header.text(
-        *message_pos, message, ha="center", color="k", va="top", **text_options,
+        *message_pos,
+        message,
+        ha="center",
+        color="k",
+        va="top",
+        **text_options,
     )
 
 
-def create_all_graphs(figure_output_path: str = frames_path) -> None:
-    """Creates a figure containing all the graphs and saves it to frames_path.
-    """
+def create_all_graphs() -> None:
+    """Creates a figure containing all the graphs and saves it to frames_path."""
     # Loads all the pickled Stats files
     files = Path(stats_basepath).glob("*.pkl")
     list_of_Stats = []
@@ -686,7 +687,8 @@ def create_all_graphs(figure_output_path: str = frames_path) -> None:
     # This is the last wordcloud, which dictates the positioning of the words in
     # the previous wordclouds.
     reference_cloud = create_wordcloud(
-        list_of_Stats[-1].reduced_word_Counter, **wc_kws,
+        list_of_Stats[-1].reduced_word_Counter,
+        **wc_kws,
     )
     # Hardcoded to -2 because my last commit is unrelated to the writing process
     reference_wc = sum(list_of_Stats[-2].reduced_word_Counter.values())
@@ -715,7 +717,10 @@ def create_all_graphs(figure_output_path: str = frames_path) -> None:
             previous_message = message
 
         add_header(
-            ax_header, starting_stat, stat, message=message,
+            ax_header,
+            starting_stat,
+            stat,
+            message=message,
         )
         # Then create the Stats graph
         # Creates and plots the stats graph using every stat up to the current one
@@ -734,7 +739,7 @@ def create_all_graphs(figure_output_path: str = frames_path) -> None:
             transfer_orientation=True,
             transfer_unk=True,
         )
-        wc_im = add_wordcloud(ax_wc, scaled_cl)
+        _ = add_wordcloud(ax_wc, scaled_cl)
 
         fig.savefig(Path(frames_path) / f"{i:03d}.png", dpi=300)
         plt.close(fig)
@@ -786,7 +791,7 @@ def test_wordcloud(pickle_path: str = "test_stats.pkl") -> None:
     cloud = create_wordcloud(st.reduced_word_Counter, width=580, height=300)
     # fig, ax_text, ax_header, ax_stats, ax_wc, ax_wc_cb = create_frame_with_cb()
     fig, ax_text, ax_header, ax_stats, ax_wc = create_frame()
-    wc_im = add_wordcloud(ax_wc, cloud)
+    _ = add_wordcloud(ax_wc, cloud)
     # add_colorbar(wc_im, ax_wc_cb)
     plt.show()
 
@@ -827,7 +832,10 @@ def test_header():
             previous_message = message
 
         add_header(
-            ax_header, reference_Stat, stat, message=message,
+            ax_header,
+            reference_Stat,
+            stat,
+            message=message,
         )
         if not Path("./test_headers").is_dir():
             Path("./test_headers").mkdir()
@@ -839,6 +847,3 @@ def test_header():
 def test_layout():
     create_frame()
     plt.show()
-
-
-create_all_graphs()

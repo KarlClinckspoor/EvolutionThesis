@@ -1,9 +1,13 @@
+import glob
+import os
+import subprocess
 import numpy as np
 import imageio
 import math
-from config import pdf_pages_path, collated_pdfs_path
+from config import pdf_pages_path, collated_pdfs_path, compiled_pdfs_path
 from pathlib import Path
 from typing import Tuple
+from repo_info import load_commit_list
 
 
 def add_border(image: np.ndarray, width: int = 1) -> np.ndarray:
@@ -12,7 +16,7 @@ def add_border(image: np.ndarray, width: int = 1) -> np.ndarray:
 
         Args:
             image (np.ndarray): Original image
-            border_width (int, optional): Border width in pixels. Defaults to 1.
+            width (int, optional): Border width in pixels. Defaults to 1.
 
         Returns:
             np.ndarray: Image with border
@@ -41,9 +45,7 @@ def add_border_c(
     """
     rows, cols, depth = image.shape
     # Create new slightly bigger array (border above and below, so 2x)
-    newimage = np.full(
-        (rows + border_width * 2, cols + border_width * 2, depth), color
-    )
+    newimage = np.full((rows + border_width * 2, cols + border_width * 2, depth), color)
     # Places original image in the center
     newimage[border_width:-border_width, border_width:-border_width, :] = image
     return newimage
@@ -95,9 +97,7 @@ def __arrange_pages_vertical(
     t_bpage_w, t_bpage_h, _ = t_bpage.shape
 
     # Create the empty array
-    canvas = np.zeros(
-        (num_cols * t_bpage_w, num_rows * t_bpage_h, 3), dtype="uint8"
-    )
+    canvas = np.zeros((num_cols * t_bpage_w, num_rows * t_bpage_h, 3), dtype="uint8")
     # extra_pages = [None] * (len(pages) - num_rows * num_cols)
     ideal_num_pages = num_rows * num_cols
     extra_required_pages = ideal_num_pages - len(pages)
@@ -147,9 +147,7 @@ def arrange_pages_horizontal(
     t_bpage_h, t_bpage_w, _ = t_bpage.shape
 
     # Create the empty array
-    canvas = np.zeros(
-        ((num_rows) * t_bpage_h, num_cols * t_bpage_w, 3), dtype="uint8"
-    )
+    canvas = np.zeros((num_rows * t_bpage_h, num_cols * t_bpage_w, 3), dtype="uint8")
     # extra_pages = [None] * (len(pages) - num_rows * num_cols)
     ideal_num_pages = num_rows * num_cols
     extra_required_pages = ideal_num_pages - len(pages)
@@ -243,7 +241,6 @@ def compress_image(sha: str, quality: float = 10) -> None:
 
     Args:
         sha (str): The commit sha
-        image (np.ndarray): the image before saving
         quality (float, optional): The quality used to compress, higher is
         better quality. Defaults to 10.
     """
@@ -266,7 +263,57 @@ def compress_all_images() -> None:
         print(" Done", flush=True)
 
 
-# collate_pdf_by_sha("e7f3e0e57a750ca29a4e2857850587a2f07260aa", 15, 25)
-# print(determine_ideal_shape("e7f3e0e57a750ca29a4e2857850587a2f07260aa"))
-# print(find_maximum_number_pages(save=True))
-# compress_all_images()
+def collate_all() -> None:
+    """Goes through every commit and collates their individual .pngs into a single, large image"""
+    commits = load_commit_list()
+    for i, commit in enumerate(commits):
+        print(
+            f"({i+1}/{len(commits)}): Merging {commit['sha']}...",
+            end="",
+            flush=True,
+        )
+        if (Path(collated_pdfs_path) / (commit["sha"] + ".png")).is_file():
+            print(" Already processed, skipping.", flush=True)
+            continue
+        # Hard coded because these seem to be the better size for my case
+        collate_pdf_by_sha(commit["sha"], rows=15, cols=25)
+        print(" Done.", flush=True)
+
+
+def dismember_pdf_images_from_sha(sha: str, dpi: int = 50) -> None:
+    """Creates images for each page of a compiled pdf, starting from its sha, using pdftoppm.
+
+    Args:
+        sha (str): SHA hash of the commit
+        dpi (int, optional): the default dpi used for the images. Defaults to
+        50. It's not necessary to be very large.
+    """
+    starting_dir = Path(os.getcwd()).absolute()
+    pdf_path = (Path(compiled_pdfs_path) / (sha + ".pdf")).absolute()
+    output_dir = (Path(pdf_pages_path) / sha).absolute()
+
+    os.makedirs(output_dir, exist_ok=True)
+    os.chdir(output_dir)
+    subprocess.run(
+        [
+            "pdftoppm",
+            "-png",
+            "-r",
+            str(dpi),
+            "-hide-annotations",
+            pdf_path.absolute(),
+            "pdf",
+        ],
+        capture_output=False,
+    )
+    os.chdir(starting_dir)
+
+
+def dismember_all_pdfs() -> None:
+    """Dismembers all compiled pdfs"""
+    pdf_files = glob.glob(compiled_pdfs_path + "/*pdf")
+    # pdf_files = glob.glob(compiled_pdfs_path + "/*pdf")
+    for i, file in enumerate(pdf_files):
+        print(f"({i+1}:{len(pdf_files)}) Dismembering", file)
+        pdf_path = Path(file)
+        dismember_pdf_images_from_sha(pdf_path.stem, dpi=50)

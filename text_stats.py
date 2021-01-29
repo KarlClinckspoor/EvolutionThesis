@@ -5,12 +5,13 @@ from config import thesis_path, stats_basepath
 import os
 import glob
 import re
-from collections import Counter, namedtuple
+from collections import Counter
 import pathlib
-import pdb
-from typing import Union
+from typing import Union, List
 import pandas as pd
 import pickle
+import git
+from repo_info import load_commit_list
 
 try:
     import nltk
@@ -114,9 +115,7 @@ class Stats:
     def stemmatize_nonstopping_words(self) -> None:
         """Get the stems of nonstopping words using RSLP"""
         stemmer = rslp.RSLPStemmer()
-        self.nonstopping_stems = [
-            stemmer.stem(word) for word in self.reduced_tokens
-        ]
+        self.nonstopping_stems = [stemmer.stem(word) for word in self.reduced_tokens]
         self.unique_nonstopping_stems = list(set(self.nonstopping_stems))
 
     def stemmatize_words_(self) -> None:
@@ -131,9 +130,7 @@ class Stats:
     def stemmatize_nonstopping_words_(self) -> None:
         """Get the stems of nonstopping words using SnowballStemmer"""
         stemmer = SnowballStemmer("portuguese")
-        self.nonstopping_stems = [
-            stemmer.stem(word) for word in self.reduced_tokens
-        ]
+        self.nonstopping_stems = [stemmer.stem(word) for word in self.reduced_tokens]
         self.unique_nonstopping_stems = list(set(self.nonstopping_stems))
 
     def Counter_stems(self) -> None:
@@ -246,9 +243,7 @@ class Stats:
         # Regex translation: Everything starting with \includegraphics, perhaps
         # having [...], and certainly having {...}. Inside, matches are lazy so it
         # matches something as small as possible.
-        includegraphics_regex = re.compile(
-            r"\\includegraphics(\[.*?\])?({.*?})"
-        )
+        includegraphics_regex = re.compile(r"\\includegraphics(\[.*?\])?({.*?})")
         self.text = includegraphics_regex.sub("", self.text)
 
     def remove_label(self) -> None:
@@ -344,9 +339,7 @@ class Stats:
         """Removes common words (stopwords) from the word Counter object. """
 
         stopwords = nltk.corpus.stopwords.words("portuguese")
-        self.reduced_tokens = [
-            word for word in self.tokens if word not in stopwords
-        ]
+        self.reduced_tokens = [word for word in self.tokens if word not in stopwords]
         self.reduced_word_Counter = Counter(self.reduced_tokens)
 
     def remove_words_with_numerals(self) -> None:
@@ -416,8 +409,7 @@ class Stats:
         self.includegraphics_count = self.command_Counter[r"\includegraphics"]
         self.inputminted = self.command_Counter[r"\inputminted"]
         self.citation_counts = (
-            self.command_Counter[r"\citeauthor"]
-            + self.command_Counter[r"\cite"]
+            self.command_Counter[r"\citeauthor"] + self.command_Counter[r"\cite"]
         )
         self.index_count = self.command_Counter[r"\index"]
         self.footnote_count = self.command_Counter[r"\footnote"]
@@ -559,8 +551,7 @@ class Stats:
 
     def save_as_text(self) -> None:
         with open(
-            self.output_path
-            / ("Stats for " + self.name + self.commit_hash + ".txt"),
+            self.output_path / ("Stats for " + self.name + self.commit_hash + ".txt"),
             "w",
         ) as fhand:
             fhand.write(self.__str__())
@@ -637,15 +628,11 @@ class Stats:
             latex_env_count=sum(self.env_Counter.values()),
             latex_environments=self.env_Counter,
             # --- Most common words --- ,
-            most_common_words=self.word_Counter.most_common(
-                self.number_most_common
-            ),
+            most_common_words=self.word_Counter.most_common(self.number_most_common),
             most_common_nonstopping_words=self.reduced_word_Counter.most_common(
                 self.number_most_common
             ),
-            most_common_stems=self.stem_Counter.most_common(
-                self.number_most_common
-            ),
+            most_common_stems=self.stem_Counter.most_common(self.number_most_common),
             most_common_nonstopping_stems=self.nonstopping_stem_Counter.most_common(
                 self.number_most_common
             ),
@@ -665,9 +652,7 @@ def fix_specific_things(stats: Stats) -> Stats:
     stats.word_Counter["micelas"] = len(occurrence_micelas_only)
     stats.word_Counter["micelas gigantes"] = len(occurrence_micelas_gigantes)
     stats.reduced_word_Counter["micelas"] = len(occurrence_micelas_only)
-    stats.reduced_word_Counter["micelas gigantes"] = len(
-        occurrence_micelas_gigantes
-    )
+    stats.reduced_word_Counter["micelas gigantes"] = len(occurrence_micelas_gigantes)
 
     return stats
 
@@ -711,9 +696,7 @@ def usage_example():
     return list_of_Stats
 
 
-def create_stats_all_tex_files(
-    filename: str, commit_hash: str, description: str
-) -> Stats:
+def create_stats_all_tex_files(commit_hash: str, description: str) -> Stats:
     path = pathlib.Path(thesis_path)
     tex_files = glob.glob(str(path / "*.tex"))
     full_text = []
@@ -733,3 +716,102 @@ def create_stats_all_tex_files(
     st.calculate_stats()
     st = fix_specific_things(st)
     return st
+
+
+def create_stats_from_sha(
+    sha: str,
+    repo: git.Repo,
+    filename_pattern: str = "*.tex",
+    merge: bool = True,
+) -> List[Stats]:
+    """Creates a stats object and computes its values starting from a commit
+    hash and a git.Repo object pointing to the repo.
+
+        Args:
+            sha (str): The commit sha hash
+            repo (git.Repo): The target repo
+            filename_pattern (str, optional): The pattern used to get the
+            appropriate files. Defaults to "*.tex".
+            merge (bool, optional): Whether or not to compute the stats for all
+            the files as one, or to compute them individually. Defaults to True.
+
+        Returns:
+            List[Stats]: A list containing the individual Stats for each file considered. If `merge==True`,
+            then its a single item list.
+    """
+
+    repo.git.checkout(sha)
+    date = repo.commit().committed_date
+
+    path = pathlib.Path(thesis_path)
+    tex_files = glob.glob(str(path / filename_pattern))
+    assert len(tex_files) >= 1
+
+    if merge:
+        list_text: List[str] = []
+        for file in tex_files:
+            text = open_file(file)
+            list_text.append(text)
+        full_text = "\n".join(list_text)
+        st = Stats(
+            f"all",
+            text=full_text,
+            commit_hash=sha,
+            description="",
+            date=date,
+            output_path=stats_basepath,
+        )
+        st.calculate_stats()
+        return [st]
+    else:
+        list_stats: List[Stats] = []
+        for file in tex_files:
+            text = open_file(file)
+            st = Stats(
+                file,
+                text=text,
+                commit_hash=sha,
+                description=filename_pattern,
+                output_path=str(pathlib.Path(stats_basepath) / sha),
+                debug_output_path=str(pathlib.Path(stats_basepath) / sha),
+            )
+            list_stats.append(st)
+        return list_stats
+
+
+def test_all_includeonlys() -> None:
+    """Tests commit by commit if there's a line containing \\includeonly. This
+    needs to be removed to better represent the evolution of the pages
+    """
+    from repo_info import load_commit_list
+
+    commits = load_commit_list()
+    repo = git.Repo(thesis_path)
+    for i, commit in enumerate(commits):
+        repo.git.checkout(commit["sha"], force=True)
+        maintex = open(
+            pathlib.Path(thesis_path) / pathlib.Path("main.tex"), "r"
+        ).readlines()
+        for j, line in enumerate(maintex):
+            if "includeonly" in line:
+                print(f'{commit["sha"]}, line {j}: {line.strip()}')
+                break
+        else:
+            print(fr'{commit["sha"]}: Commit does not have an \includeonly statement')
+
+
+def create_all_stats() -> None:
+    """Creates a Stats class for all commits in the repository, merging all tex files"""
+
+    commits = load_commit_list()
+    starting_commit = commits[0]["sha"]
+    repo = git.Repo(thesis_path)
+    repo.git.checkout(starting_commit, force=True)
+
+    for commit in commits:
+        st = create_stats_from_sha(
+            commit["sha"],
+            repo,
+        )[0]
+        st.pickle()
+        st.save_as_text()

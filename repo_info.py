@@ -4,13 +4,11 @@
 
 import git
 from config import thesis_path
-import pandas as pd
-from text_stats import Stats, open_file
-import glob
-import pathlib
 
 
-def create_commit_list(repo: git.Repo, out_filename: str = 'git_commits_info.txt') -> list:
+def create_commit_list(
+    repo: git.Repo, out_filename: str = "git_commits_info.txt"
+) -> list:
     """Goes through the commits and generates an external text file that has the
     sha, the commit message and the unix date.
 
