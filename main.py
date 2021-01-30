@@ -10,7 +10,6 @@ from latex_manip import compile_all_pdfs
 import config
 from pathlib import Path
 
-debug = True
 
 def main():
     options = """
@@ -25,19 +24,8 @@ def main():
     7. Create all video frames
     8. Do all
     """
-    print("Checking folders")
     create_directories()
     while True:
-        if debug:
-            create_commit_list()
-            create_all_stats()
-            compile_all_pdfs()
-            dismember_all_pdfs()
-            collate_all()
-            compress_all_images()
-            create_all_graphs()
-            print('Done')
-            break
         print(options)
         choice = input("What is your choice?")
         if choice not in ["1", "2", "3", "4", "5", "6", "7", "8"]:
@@ -46,31 +34,33 @@ def main():
         else:
             if (choice == "1") or (choice == "8"):
                 create_commit_list()
-            elif (choice == "2") or (choice == "8"):
+                print("\t Done creating commit list")
+            if (choice == "2") or (choice == "8"):
                 create_all_stats()
-            elif (choice == "3") or (choice == "8"):
+            if (choice == "3") or (choice == "8"):
                 compile_all_pdfs()
-            elif (choice == "4") or (choice == "8"):
+            if (choice == "4") or (choice == "8"):
                 dismember_all_pdfs()
-            elif (choice == "5") or (choice == "8"):
+            if (choice == "5") or (choice == "8"):
                 collate_all()
-            elif (choice == "6") or (choice == "8"):
+            if (choice == "6") or (choice == "8"):
                 compress_all_images()
-            elif (choice == "7") or (choice == "8"):
+            if (choice == "7") or (choice == "8"):
                 create_all_graphs()
 
 
 def create_directories() -> None:
+    print("Checking folders...")
     for key, val in config.__dict__.items():
         if key.startswith("__"):
             continue
         folder = Path(val)
-        print("Checking", folder)
+        print("\tChecking", folder)
         if not folder.is_dir():
-            if input("Create directory:" + str(folder) + "? (Y/n)").lower() == "n":
+            if input("\tCreate directory:" + str(folder) + "? (Y/n)").lower() == "n":
                 pass
             else:
-                print("Creating", folder)
+                print("\tCreating", folder)
                 folder.mkdir()
 
 
